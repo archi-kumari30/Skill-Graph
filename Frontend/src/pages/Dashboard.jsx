@@ -47,38 +47,41 @@ const Dashboard = () => {
       setLoading(true);
       setError('');
       
-      const summaryRes = await api.get('/dashboard/summary');
-      setSummaryData(summaryRes.data);
+      const targetRoleId = user?.targetRoleId?._id || user?.targetRoleId;
 
-      const profileRes = await api.get(`/users/${user._id}`);
+      // Execute all core queries concurrently in parallel
+      const [summaryRes, profileRes, skillsRes, progressRes, topicProgRes, gapRes] = await Promise.all([
+        api.get('/dashboard/summary'),
+        api.get(`/users/${user._id}`),
+        api.get(`/users/${user._id}/skills`),
+        api.get('/learning/my-progress'),
+        api.get('/learning/topics/progress').catch(() => ({ data: { completedTopics: [] } })),
+        targetRoleId
+          ? api.get(`/skill-gap/users/${user._id}/roles/${targetRoleId}`).catch(() => ({ data: null }))
+          : Promise.resolve({ data: null })
+      ]);
+
       const freshUser = profileRes.data?.user || user;
-      setUserProfile(freshUser);
-
-      const targetRoleId = freshUser.targetRoleId?._id || freshUser.targetRoleId;
-      if (targetRoleId) {
+      const freshTargetRoleId = freshUser.targetRoleId?._id || freshUser.targetRoleId;
+      
+      let finalGapData = gapRes.data;
+      // In case the target career selection was updated, synchronize gap details in a fast secondary fetch
+      if (freshTargetRoleId && freshTargetRoleId.toString() !== targetRoleId?.toString()) {
         try {
-          const gapRes = await api.get(`/skill-gap/users/${user._id}/roles/${targetRoleId}`);
-          setPersonalGapData(gapRes.data || null);
+          const freshGapRes = await api.get(`/skill-gap/users/${user._id}/roles/${freshTargetRoleId}`);
+          finalGapData = freshGapRes.data;
         } catch (gapErr) {
           console.error("No gap analysis found for this role", gapErr);
-          setPersonalGapData(null);
+          finalGapData = null;
         }
-      } else {
-        setPersonalGapData(null);
       }
 
-      const skillsRes = await api.get(`/users/${user._id}/skills`);
+      setSummaryData(summaryRes.data);
+      setUserProfile(freshUser);
       setUserSkills(skillsRes.data.skills || []);
-
-      const progressRes = await api.get('/learning/my-progress');
       setLearningProgress(progressRes.data.progress || []);
-
-      try {
-        const topicProgRes = await api.get('/learning/topics/progress');
-        setTopicProgress(topicProgRes.data?.completedTopics || []);
-      } catch (topicErr) {
-        setTopicProgress([]);
-      }
+      setTopicProgress(topicProgRes.data?.completedTopics || []);
+      setPersonalGapData(finalGapData);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to retrieve skill journey summary.');
     } finally {
