@@ -33,6 +33,9 @@ const Dashboard = () => {
   const [learningProgress, setLearningProgress] = useState([]);
   const [topicProgress, setTopicProgress] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingSkills, setLoadingSkills] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(true);
+  const [loadingGaps, setLoadingGaps] = useState(true);
   const [error, setError] = useState('');
 
   // Reassessment Modal States
@@ -45,47 +48,78 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setLoadingSkills(true);
+      setLoadingProgress(true);
+      setLoadingGaps(true);
       setError('');
-      
-      const targetRoleId = user?.targetRoleId?._id || user?.targetRoleId;
 
-      // Execute all core queries concurrently in parallel
-      const [summaryRes, profileRes, skillsRes, progressRes, topicProgRes, gapRes] = await Promise.all([
+      // 1. Fetch essential core layout/summary and profile data first
+      const [summaryRes, profileRes] = await Promise.all([
         api.get('/dashboard/summary'),
-        api.get(`/users/${user._id}`),
-        api.get(`/users/${user._id}/skills`),
-        api.get('/learning/my-progress'),
-        api.get('/learning/topics/progress').catch(() => ({ data: { completedTopics: [] } })),
-        targetRoleId
-          ? api.get(`/skill-gap/users/${user._id}/roles/${targetRoleId}`).catch(() => ({ data: null }))
-          : Promise.resolve({ data: null })
+        api.get(`/users/${user._id}`)
       ]);
 
-      const freshUser = profileRes.data?.user || user;
-      const freshTargetRoleId = freshUser.targetRoleId?._id || freshUser.targetRoleId;
-      
-      let finalGapData = gapRes.data;
-      // In case the target career selection was updated, synchronize gap details in a fast secondary fetch
-      if (freshTargetRoleId && freshTargetRoleId.toString() !== targetRoleId?.toString()) {
-        try {
-          const freshGapRes = await api.get(`/skill-gap/users/${user._id}/roles/${freshTargetRoleId}`);
-          finalGapData = freshGapRes.data;
-        } catch (gapErr) {
-          console.error("No gap analysis found for this role", gapErr);
-          finalGapData = null;
-        }
-      }
-
       setSummaryData(summaryRes.data);
+      const freshUser = profileRes.data?.user || user;
       setUserProfile(freshUser);
-      setUserSkills(skillsRes.data.skills || []);
-      setLearningProgress(progressRes.data.progress || []);
-      setTopicProgress(topicProgRes.data?.completedTopics || []);
-      setPersonalGapData(finalGapData);
+      setLoading(false); // Stop block and render page framework immediately!
+
+      // 2. Fetch secondary data progressively in parallel
+      const skillsPromise = api.get(`/users/${user._id}/skills`)
+        .then(res => {
+          setUserSkills(res.data.skills || []);
+          setLoadingSkills(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoadingSkills(false);
+        });
+
+      const progressPromise = api.get('/learning/my-progress')
+        .then(res => {
+          setLearningProgress(res.data.progress || []);
+          setLoadingProgress(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoadingProgress(false);
+        });
+
+      const topicProgressPromise = api.get('/learning/topics/progress')
+        .then(res => {
+          setTopicProgress(res.data?.completedTopics || []);
+        })
+        .catch(err => {
+          console.error(err);
+          setTopicProgress([]);
+        });
+
+      const freshTargetRoleId = freshUser.targetRoleId?._id || freshUser.targetRoleId;
+      const gapPromise = freshTargetRoleId
+        ? api.get(`/skill-gap/users/${user._id}/roles/${freshTargetRoleId}`)
+            .then(res => {
+              setPersonalGapData(res.data || null);
+              setLoadingGaps(false);
+            })
+            .catch(err => {
+              console.error(err);
+              setPersonalGapData(null);
+              setLoadingGaps(false);
+            })
+        : Promise.resolve().then(() => {
+            setPersonalGapData(null);
+            setLoadingGaps(false);
+          });
+
+      // Execute all promises in the background concurrently
+      Promise.all([skillsPromise, progressPromise, topicProgressPromise, gapPromise]);
+
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to retrieve skill journey summary.');
-    } finally {
       setLoading(false);
+      setLoadingSkills(false);
+      setLoadingProgress(false);
+      setLoadingGaps(false);
     }
   };
 
@@ -154,6 +188,15 @@ const Dashboard = () => {
 
   if (loading) return <LoadingSpinner message="Opening your skill journey dashboard..." />;
   if (error) return <ErrorState message={error} onRetry={fetchData} />;
+
+  const renderSnapshotValue = (isLoading, value) => {
+    if (isLoading) {
+      return (
+        <span className="inline-block w-4 h-4 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin" />
+      );
+    }
+    return value;
+  };
 
   // Dynamic calculations
   const totalSkills = userSkills.length;
@@ -344,13 +387,13 @@ const Dashboard = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Your Skill Snapshot</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: 'Skills', value: totalSkills, desc: 'Logged skills' },
-                { label: 'Strong', value: strongSkills, desc: 'Mastered level' },
-                { label: 'Growing', value: inProgressSkills, desc: 'In progress' },
-                { label: 'Gaps', value: skillGapsCount, desc: 'Needs study' }
+                { label: 'Skills', value: renderSnapshotValue(loadingSkills, totalSkills), desc: 'Logged skills' },
+                { label: 'Strong', value: renderSnapshotValue(loadingSkills, strongSkills), desc: 'Mastered level' },
+                { label: 'Growing', value: renderSnapshotValue(loadingSkills, inProgressSkills), desc: 'In progress' },
+                { label: 'Gaps', value: renderSnapshotValue(loadingGaps, skillGapsCount), desc: 'Needs study' }
               ].map((c, i) => (
                 <div key={i} className="bg-white border border-slate-200/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                  <h4 className="text-2xl font-black text-slate-800 tracking-tight">{c.value}</h4>
+                  <h4 className="text-2xl font-black text-slate-800 tracking-tight flex items-center h-8">{c.value}</h4>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-455 mt-1">{c.label}</p>
                 </div>
               ))}
@@ -367,7 +410,12 @@ const Dashboard = () => {
             </div>
 
             <div className="flex justify-center py-4 border-t border-slate-100">
-              {userSkills.length === 0 ? (
+              {loadingSkills ? (
+                <div className="text-center py-8">
+                  <div className="inline-block w-6 h-6 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin mb-2" />
+                  <p className="text-[10px] text-slate-400">Loading skill connections...</p>
+                </div>
+              ) : userSkills.length === 0 ? (
                 <div className="text-center py-8 space-y-4">
                   <p className="text-xs text-slate-500 font-semibold italic">You haven't added any skills yet.</p>
                   <Link
@@ -420,7 +468,12 @@ const Dashboard = () => {
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Continue Learning</h3>
             
-            {activeLearningItems.length === 0 ? (
+            {loadingProgress ? (
+              <div className="bg-white border border-slate-200/50 rounded-3xl p-8 text-center shadow-sm">
+                <div className="inline-block w-6 h-6 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin mb-2" />
+                <p className="text-[10px] text-slate-400">Loading your learning roadmap...</p>
+              </div>
+            ) : activeLearningItems.length === 0 ? (
               <div className="bg-white border border-slate-200/50 rounded-3xl p-8 text-center space-y-3 shadow-sm">
                 <Bookmark className="w-8 h-8 text-slate-355 mx-auto" />
                 <p className="text-xs text-slate-500 font-semibold italic">No target career required skills mapped. Select a target career in Profile or Career Explorer.</p>
@@ -494,14 +547,19 @@ const Dashboard = () => {
           <div className="bg-white border border-slate-200/50 rounded-3xl p-6 shadow-sm space-y-4.5 bg-grid-pattern">
             <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-100 pb-3 flex justify-between items-center">
               <span>Goal: {targetRoleName}</span>
-              {personalGapData && (
+              {!loadingGaps && personalGapData && (
                 <span className="text-[10px] text-indigo-650 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg font-black">
                   Readiness: {readiness}%
                 </span>
               )}
             </h3>
 
-            {personalGapData ? (
+            {loadingGaps ? (
+              <div className="text-center py-8">
+                <div className="inline-block w-6 h-6 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin mb-2" />
+                <p className="text-[10px] text-slate-400">Analyzing career readiness gaps...</p>
+              </div>
+            ) : personalGapData ? (
               <div className="space-y-4 text-xs font-semibold text-slate-655">
                 {/* Visual Progress Bar */}
                 <div className="space-y-1">
@@ -563,7 +621,11 @@ const Dashboard = () => {
           </div>
 
           {/* Recent Activity */}
-          {recentActivities.length > 0 && (
+          {loadingSkills ? (
+            <div className="bg-white border border-slate-200/50 rounded-3xl p-5 shadow-sm text-center">
+              <div className="inline-block w-4 h-4 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : recentActivities.length > 0 ? (
             <div className="bg-white border border-slate-200/50 rounded-3xl p-5 shadow-sm space-y-3.5">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recent Activity</h4>
               <div className="space-y-2">
@@ -575,7 +637,7 @@ const Dashboard = () => {
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
         </div>
 
