@@ -2,9 +2,18 @@ const app = require('./app');
 const connectDB = require('./config/db');
 const { connectCognoDB } = require('./config/cognodb');
 const config = require('./config/config');
+const { runCatalogSeed } = require('./seed/seedCatalog');
 
 // Connect to Database first, then start the server
 connectDB().then(async () => {
+  try {
+    console.log('Running safe catalog database seeding on startup...');
+    await runCatalogSeed();
+    console.log('Safe catalog database seeding completed successfully.');
+  } catch (err) {
+    console.error('Safe catalog seeding failed on startup:', err.message);
+  }
+
   try {
     await connectCognoDB();
   } catch (err) {
