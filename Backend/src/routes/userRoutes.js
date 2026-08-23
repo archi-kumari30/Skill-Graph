@@ -1,9 +1,12 @@
 const express = require('express');
 const userController = require('../controllers/userController');
+const authController = require('../controllers/authController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 const { ForbiddenError } = require('../utils/customErrors');
 
 const router = express.Router();
+
+router.post('/login', authController.login);
 
 // Middleware checking if the user is editing their own data, or is an admin/manager
 const restrictToSelfOrAdminManager = (paramName) => {
