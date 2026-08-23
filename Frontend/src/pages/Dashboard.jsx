@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [learningProgress, setLearningProgress] = useState([]);
   const [topicProgress, setTopicProgress] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingSkills, setLoadingSkills] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(true);
   const [loadingGaps, setLoadingGaps] = useState(true);
@@ -48,23 +49,29 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setLoadingSummary(true);
       setLoadingSkills(true);
       setLoadingProgress(true);
       setLoadingGaps(true);
       setError('');
 
-      // 1. Fetch essential core layout/summary and profile data first
-      const [summaryRes, profileRes] = await Promise.all([
-        api.get('/dashboard/summary'),
-        api.get(`/users/${user._id}`)
-      ]);
-
-      setSummaryData(summaryRes.data);
+      // 1. Fetch ONLY essential core profile data first to unblock page skeleton
+      const profileRes = await api.get(`/users/${user._id}`);
       const freshUser = profileRes.data?.user || user;
       setUserProfile(freshUser);
-      setLoading(false); // Stop block and render page framework immediately!
+      setLoading(false); // Stop full-page loading block immediately!
 
-      // 2. Fetch secondary data progressively in parallel
+      // 2. Fetch all other data (including summary) progressively in parallel
+      const summaryPromise = api.get('/dashboard/summary')
+        .then(res => {
+          setSummaryData(res.data);
+          setLoadingSummary(false);
+        })
+        .catch(err => {
+          console.error("Failed to load dashboard summary", err);
+          setLoadingSummary(false);
+        });
+
       const skillsPromise = api.get(`/users/${user._id}/skills`)
         .then(res => {
           setUserSkills(res.data.skills || []);
@@ -112,11 +119,12 @@ const Dashboard = () => {
           });
 
       // Execute all promises in the background concurrently
-      Promise.all([skillsPromise, progressPromise, topicProgressPromise, gapPromise]);
+      Promise.all([summaryPromise, skillsPromise, progressPromise, topicProgressPromise, gapPromise]);
 
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to retrieve skill journey summary.');
+      setError(err.response?.data?.error?.message || 'Failed to retrieve user profile.');
       setLoading(false);
+      setLoadingSummary(false);
       setLoadingSkills(false);
       setLoadingProgress(false);
       setLoadingGaps(false);
@@ -387,10 +395,10 @@ const Dashboard = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Your Skill Snapshot</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: 'Skills', value: renderSnapshotValue(loadingSkills, totalSkills), desc: 'Logged skills' },
-                { label: 'Strong', value: renderSnapshotValue(loadingSkills, strongSkills), desc: 'Mastered level' },
-                { label: 'Growing', value: renderSnapshotValue(loadingSkills, inProgressSkills), desc: 'In progress' },
-                { label: 'Gaps', value: renderSnapshotValue(loadingGaps, skillGapsCount), desc: 'Needs study' }
+                { label: 'Skills', value: renderSnapshotValue(loadingSkills || loadingSummary, totalSkills), desc: 'Logged skills' },
+                { label: 'Strong', value: renderSnapshotValue(loadingSkills || loadingSummary, strongSkills), desc: 'Mastered level' },
+                { label: 'Growing', value: renderSnapshotValue(loadingSkills || loadingSummary, inProgressSkills), desc: 'In progress' },
+                { label: 'Gaps', value: renderSnapshotValue(loadingGaps || loadingSummary, skillGapsCount), desc: 'Needs study' }
               ].map((c, i) => (
                 <div key={i} className="bg-white border border-slate-200/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
                   <h4 className="text-2xl font-black text-slate-800 tracking-tight flex items-center h-8">{c.value}</h4>
