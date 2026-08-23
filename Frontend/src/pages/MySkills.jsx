@@ -488,11 +488,19 @@ const MySkills = () => {
                   onChange={(e) => setNewSkillCategory(e.target.value)}
                   className="w-full p-2.5 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
                 >
+                  <option value="Programming">Programming</option>
                   <option value="Frontend">Frontend</option>
                   <option value="Backend">Backend</option>
                   <option value="Database">Database</option>
-                  <option value="DevOps">DevOps</option>
                   <option value="Tools">Tools</option>
+                  <option value="DevOps">DevOps</option>
+                  <option value="Architecture">Architecture</option>
+                  <option value="Quality Assurance">Quality Assurance</option>
+                  <option value="Computer Science Fundamentals">Computer Science Fundamentals</option>
+                  <option value="AI / ML">AI / ML</option>
+                  <option value="Cloud">Cloud</option>
+                  <option value="Security">Security</option>
+                  <option value="Mobile">Mobile</option>
                   <option value="General">General</option>
                 </select>
               </div>
