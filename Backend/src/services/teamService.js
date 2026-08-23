@@ -157,15 +157,17 @@ const getTeamRoleReadiness = async (roleId) => {
   // Group user skills by skillId
   const skillToUsersMap = {};
   allUserSkills.forEach(us => {
-    const sId = us.skillId.toString();
-    if (!skillToUsersMap[sId]) {
-      skillToUsersMap[sId] = [];
+    if (us.skillId) {
+      const sId = us.skillId.toString();
+      if (!skillToUsersMap[sId]) {
+        skillToUsersMap[sId] = [];
+      }
+      skillToUsersMap[sId].push({
+        userId: us.userId ? us.userId._id : null,
+        userName: us.userId ? us.userId.name : 'Unknown',
+        proficiency: us.proficiency
+      });
     }
-    skillToUsersMap[sId].push({
-      userId: us.userId ? us.userId._id : null,
-      userName: us.userId ? us.userId.name : 'Unknown',
-      proficiency: us.proficiency
-    });
   });
 
   let totalWeightedMaxScore = 0;

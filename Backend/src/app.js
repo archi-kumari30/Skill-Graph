@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,6 +19,9 @@ const recommendationRoutes = require('./routes/recommendationRoutes');
 const matchingRoutes = require('./routes/matchingRoutes');
 const teamRoutes = require('./routes/teamRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const jobRoutes = require('./routes/jobRoutes');
+const learningRoutes = require('./routes/learningRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const app = express();
 
@@ -61,6 +65,9 @@ app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/matching', matchingRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/learning', learningRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

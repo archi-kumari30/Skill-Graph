@@ -1,5 +1,6 @@
 const Skill = require('../models/Skill');
 const SkillRelationship = require('../models/SkillRelationship');
+const graphService = require('./graphService');
 const { NotFoundError, BadRequestError, ConflictError } = require('../utils/customErrors');
 
 const createRelationship = async (data) => {
@@ -75,6 +76,50 @@ const deleteRelationship = async (id) => {
 };
 
 const getGraph = async () => {
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const mongoSkills = await Skill.find();
+    const mongoRelationships = await SkillRelationship.find();
+
+    const graphNodes = await graphService.runQuery('MATCH (s:Skill) RETURN s.id AS id');
+    const graphEdges = await graphService.runQuery(
+      'MATCH (s1:Skill)-[r:PREREQUISITE_OF|RELATED_TO]->(s2:Skill) RETURN id(r) AS id'
+    );
+
+    if (mongoSkills.length !== graphNodes.length || mongoRelationships.length !== graphEdges.length) {
+      await graphService.runQuery('MATCH (s:Skill) DETACH DELETE s');
+      await graphService.runQuery('MATCH (t:LearningTopic) DETACH DELETE t');
+
+      for (const skill of mongoSkills) {
+        await graphService.runQuery(
+          `MERGE (s:Skill { id: $id })
+           SET s.name = $name, s.category = $category, s.description = $description`,
+          {
+            id: skill._id.toString(),
+            name: skill.name,
+            category: skill.category,
+            description: skill.description || ''
+          }
+        );
+      }
+
+      for (const rel of mongoRelationships) {
+        const type = rel.relationshipType === 'prerequisite' ? 'PREREQUISITE_OF' : 'RELATED_TO';
+        await graphService.runQuery(
+          `MATCH (s1:Skill { id: $sourceId }), (s2:Skill { id: $targetId })
+           MERGE (s1)-[r:${type}]->(s2)
+           SET r.strength = $strength`,
+          {
+            sourceId: rel.sourceSkillId.toString(),
+            targetId: rel.targetSkillId.toString(),
+            strength: rel.strength || 1.0
+          }
+        );
+      }
+    }
+
+    return await graphService.getSkillGraph();
+  }
+
   const skills = await Skill.find();
   const relationships = await SkillRelationship.find();
 

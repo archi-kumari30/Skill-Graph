@@ -10,7 +10,7 @@ const generateToken = (id) => {
 };
 
 const register = async (userData) => {
-  const { name, email, password, accountRole, department } = userData;
+  const { name, email, password, accountRole, department, branch, college, yearOfStudy } = userData;
 
   if (!email || !password || !name) {
     throw new BadRequestError('Please provide name, email, and password');
@@ -25,8 +25,11 @@ const register = async (userData) => {
     name,
     email,
     password,
-    accountRole,
-    department
+    accountRole: accountRole || 'employee',
+    department: department || '',
+    branch: branch || '',
+    college: college || '',
+    yearOfStudy: yearOfStudy || ''
   });
 
   const token = generateToken(user._id);

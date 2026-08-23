@@ -4,6 +4,7 @@ const SkillRelationship = require('../models/SkillRelationship');
 const LearningResource = require('../models/LearningResource');
 const User = require('../models/User');
 const Role = require('../models/Role');
+const Skill = require('../models/Skill');
 const { NotFoundError } = require('../utils/customErrors');
 
 const getRecommendations = async (userId, roleId) => {
@@ -14,11 +15,18 @@ const getRecommendations = async (userId, roleId) => {
   const role = await Role.findById(roleId);
   if (!role) throw new NotFoundError('Role not found');
 
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const graphService = require('./graphService');
+    return await graphService.getRecommendations(userId, roleId);
+  }
+
   // 1. Fetch user skills
   const userSkills = await UserSkill.find({ userId });
   const userSkillMap = {};
   userSkills.forEach(us => {
-    userSkillMap[us.skillId.toString()] = us.proficiency;
+    if (us.skillId) {
+      userSkillMap[us.skillId.toString()] = us.proficiency;
+    }
   });
 
   // 2. Fetch role skill requirements
@@ -39,20 +47,48 @@ const getRecommendations = async (userId, roleId) => {
   });
 
   // 3. Identify skills with a gap
+  const UserTopicProgress = require('../models/UserTopicProgress');
+  const completedProgress = await UserTopicProgress.find({ userId });
+  const topicCompletionMap = {};
+  completedProgress.forEach(tp => {
+    if (tp.skillId) {
+      topicCompletionMap[tp.skillId.toString()] = (topicCompletionMap[tp.skillId.toString()] || 0) + 1;
+    }
+  });
+
+  const SKILL_TOTAL_TOPICS = {
+    'HTML': 7,
+    'CSS': 7,
+    'JavaScript': 10,
+    'React': 8,
+    'Git': 4,
+    'Node.js': 7,
+    'Express': 6,
+    'MongoDB': 6
+  };
+
   const gapSkills = [];
   roleSkills.forEach(rs => {
     const skill = rs.skillId;
     if (!skill) return;
 
-    const currentProf = userSkillMap[skill._id.toString()] || 0;
+    const skillIdStr = skill._id.toString();
+    const currentProf = userSkillMap[skillIdStr] || 0;
+    
+    const totalTopics = SKILL_TOTAL_TOPICS[skill.name] || 3;
+    const completedTopicsCount = topicCompletionMap[skillIdStr] || 0;
+    const completionRate = totalTopics > 0 ? Math.min(1.0, completedTopicsCount / totalTopics) : 1.0;
+    
+    const effectiveProf = currentProf * completionRate;
     const reqProf = rs.requiredProficiency;
 
-    if (currentProf < reqProf) {
+    if (effectiveProf < reqProf) {
       gapSkills.push({
         skill,
         currentProficiency: currentProf,
+        effectiveProficiency: effectiveProf,
         requiredProficiency: reqProf,
-        gap: reqProf - currentProf,
+        gap: reqProf - effectiveProf,
         importance: rs.importance
       });
     }
@@ -189,6 +225,7 @@ const getRecommendations = async (userId, roleId) => {
       prerequisiteSkills: skillPrereqs.map(p => ({ id: p._id, name: p.name })),
       unsatisfiedPrerequisites: unsatisfiedPrereqs.map(p => ({ id: p.id, name: p.name })),
       learningResources: resources.map(r => ({
+        id: r._id,
         title: r.title,
         url: r.url,
         difficulty: r.difficulty,

@@ -33,6 +33,22 @@ const userSchema = new mongoose.Schema(
     department: {
       type: String,
       default: ''
+    },
+    targetRoleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Role'
+    },
+    branch: {
+      type: String,
+      default: ''
+    },
+    college: {
+      type: String,
+      default: ''
+    },
+    yearOfStudy: {
+      type: String,
+      default: ''
     }
   },
   {

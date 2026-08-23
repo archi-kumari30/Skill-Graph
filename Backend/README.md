@@ -153,8 +153,13 @@ Run the following in the `Backend` directory:
 npm install
 ```
 
+### Demonstration Credentials
+For testing and demonstrating the Engineering Career platform, use these seeded credentials:
+- **Email**: `demo.student@skillgraph.com`
+- **Password**: `SkillGraph@123`
+
 ### Seeding Database
-To clear the database and populate it with default programming skills, dependencies, roles, and dummy users:
+To clear the database and populate it with default engineering skills, roles, jobs, companies, and the demo student:
 ```bash
 npm run seed
 ```

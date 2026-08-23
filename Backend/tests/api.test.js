@@ -6,6 +6,10 @@ const Role = require('../src/models/Role');
 const RoleSkill = require('../src/models/RoleSkill');
 const UserSkill = require('../src/models/UserSkill');
 const LearningResource = require('../src/models/LearningResource');
+const Company = require('../src/models/Company');
+const Job = require('../src/models/Job');
+const LearningProgress = require('../src/models/LearningProgress');
+const UserTopicProgress = require('../src/models/UserTopicProgress');
 
 describe('SkillGraph Backend API Integration Tests', () => {
   let adminToken;
@@ -212,6 +216,25 @@ describe('SkillGraph Backend API Integration Tests', () => {
         skillId: reactSkill._id,
         proficiency: 1
       });
+
+      // 7. Seed completed topics for React (8 topics) & Next.js (3 topics) to satisfy learning completion rate in tests
+      await UserTopicProgress.deleteMany({});
+      for (let i = 1; i <= 8; i++) {
+        await UserTopicProgress.create({
+          userId: employeeUser._id,
+          skillId: reactSkill._id,
+          topicTitle: `React Topic ${i}`,
+          completed: true
+        });
+      }
+      for (let i = 1; i <= 3; i++) {
+        await UserTopicProgress.create({
+          userId: employeeUser._id,
+          skillId: nextSkill._id,
+          topicTitle: `Next.js Topic ${i}`,
+          completed: true
+        });
+      }
     });
 
     it('should calculate the skill gap analysis with weights correctly', async () => {
@@ -267,6 +290,99 @@ describe('SkillGraph Backend API Integration Tests', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.data.nodes.length).toBe(3);
       expect(res.body.data.edges.length).toBe(2);
+    });
+  });
+
+  describe('Job Matching and Companies APIs', () => {
+    let company, job, skill;
+
+    beforeEach(async () => {
+      company = await Company.create({
+        name: 'Stripe',
+        industry: 'Fintech'
+      });
+      skill = await Skill.create({
+        name: 'React',
+        category: 'Frontend'
+      });
+      job = await Job.create({
+        companyId: company._id,
+        title: 'React Dev',
+        requirements: [{
+          skillId: skill._id,
+          requiredProficiency: 3,
+          importance: 'required',
+          requirementType: 'required'
+        }]
+      });
+    });
+
+    it('should fetch matched jobs ranked by compatibility score', async () => {
+      const res = await request(app)
+        .get('/api/jobs/matches')
+        .set('Authorization', `Bearer ${employeeToken}`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.matches.length).toBeGreaterThan(0);
+      expect(res.body.data.matches[0].title).toBe('React Dev');
+    });
+  });
+
+  describe('Learning Progress APIs', () => {
+    let resource, skill;
+
+    beforeEach(async () => {
+      skill = await Skill.create({ name: 'Docker', category: 'DevOps' });
+      resource = await LearningResource.create({
+        title: 'Docker Course',
+        skillId: skill._id,
+        url: 'https://example.com',
+        difficulty: 'beginner'
+      });
+    });
+
+    it('should start, update, and complete progress records for a resource', async () => {
+      // 1. Start
+      const startRes = await request(app)
+        .post(`/api/learning/${resource._id}/start`)
+        .set('Authorization', `Bearer ${employeeToken}`);
+      expect(startRes.statusCode).toBe(201);
+      expect(startRes.body.data.progress.status).toBe('in_progress');
+
+      // 2. Update
+      const updateRes = await request(app)
+        .put(`/api/learning/${resource._id}/progress`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ progressPercentage: 50 });
+      expect(updateRes.statusCode).toBe(200);
+      expect(updateRes.body.data.progress.progressPercentage).toBe(50);
+
+      // 3. Complete
+      const completeRes = await request(app)
+        .post(`/api/learning/${resource._id}/complete`)
+        .set('Authorization', `Bearer ${employeeToken}`);
+      expect(completeRes.statusCode).toBe(200);
+      expect(completeRes.body.data.progress.status).toBe('completed');
+    });
+  });
+
+  describe('AI Career Assistant API', () => {
+    it('should return a configuration error when Gemini API Key is missing', async () => {
+      // Temporarily clear API key if set to test fallback
+      const originalKey = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const res = await request(app)
+        .post('/api/ai/career-assistant')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ question: 'What should I learn next?' });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.message).toContain('AI Career Assistant is not configured');
+
+      // Restore key
+      process.env.GEMINI_API_KEY = originalKey;
     });
   });
 });

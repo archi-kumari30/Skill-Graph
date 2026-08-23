@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
 const Skill = require('../models/Skill');
+const graphService = require('./graphService');
 const { NotFoundError, BadRequestError, ConflictError } = require('../utils/customErrors');
 
 const getAllUsers = async (filter = {}) => {
@@ -8,7 +9,7 @@ const getAllUsers = async (filter = {}) => {
 };
 
 const getUserById = async (id) => {
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate('targetRoleId');
   if (!user) {
     throw new NotFoundError('User not found');
   }
@@ -44,8 +45,31 @@ const deleteUser = async (id) => {
 
 // User Skill Management
 const getUserSkills = async (userId) => {
-  // Check user exists
   await getUserById(userId);
+
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const mongoUserSkills = await UserSkill.find({ userId }).populate('skillId');
+    const graphUserSkills = await graphService.getUserSkills(userId);
+
+    if (mongoUserSkills.length !== graphUserSkills.length) {
+      await graphService.runQuery(
+        'MATCH (u:User { id: $userId })-[r:HAS_SKILL]->() DELETE r',
+        { userId }
+      );
+      for (const us of mongoUserSkills) {
+        if (us.skillId) {
+          await graphService.addUserSkill(
+            userId,
+            us.skillId._id.toString(),
+            us.proficiency,
+            us.yearsOfExperience || 0
+          );
+        }
+      }
+      return await graphService.getUserSkills(userId);
+    }
+    return graphUserSkills;
+  }
 
   return await UserSkill.find({ userId }).populate('skillId');
 };
@@ -57,52 +81,103 @@ const addUserSkill = async (userId, skillData) => {
     throw new BadRequestError('Skill ID is required');
   }
 
-  // Verify User and Skill exist
   await getUserById(userId);
   const skill = await Skill.findById(skillId);
   if (!skill) {
     throw new NotFoundError('Skill not found');
   }
 
-  // Check if relationship already exists
   const existing = await UserSkill.findOne({ userId, skillId });
   if (existing) {
     throw new ConflictError('User already has this skill in their profile. Use PUT to update.');
   }
 
-  return await UserSkill.create({
-    userId,
-    skillId,
-    proficiency,
-    yearsOfExperience,
-    source: source || 'self'
-  });
+  let userSkill;
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const res = await graphService.addUserSkill(userId, skillId, proficiency, yearsOfExperience || 0);
+    userSkill = {
+      _id: `${userId}_${skillId}`,
+      userId,
+      skillId: {
+        _id: skillId,
+        name: skill.name,
+        category: skill.category
+      },
+      proficiency: res.proficiency,
+      yearsOfExperience: res.yearsOfExperience,
+      source: source || 'self'
+    };
+    await UserSkill.create({
+      userId,
+      skillId,
+      proficiency,
+      yearsOfExperience,
+      source: source || 'self'
+    });
+  } else {
+    userSkill = await UserSkill.create({
+      userId,
+      skillId,
+      proficiency,
+      yearsOfExperience,
+      source: source || 'self'
+    });
+  }
+  return userSkill;
 };
 
 const updateUserSkill = async (userId, skillId, updateData) => {
-  // Verify User exists
   await getUserById(userId);
 
-  const userSkill = await UserSkill.findOneAndUpdate(
-    { userId, skillId },
-    updateData,
-    { new: true, runValidators: true }
-  );
+  let userSkill;
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const res = await graphService.updateUserSkill(userId, skillId, updateData);
+    if (!res) {
+      throw new NotFoundError('Skill not found on this user profile');
+    }
 
-  if (!userSkill) {
-    throw new NotFoundError('Skill not found on this user profile');
+    const skill = await Skill.findById(skillId);
+    userSkill = {
+      _id: `${userId}_${skillId}`,
+      userId,
+      skillId: {
+        _id: skillId,
+        name: skill ? skill.name : '',
+        category: skill ? skill.category : ''
+      },
+      proficiency: res.proficiency,
+      yearsOfExperience: res.yearsOfExperience
+    };
+    await UserSkill.findOneAndUpdate({ userId, skillId }, updateData);
+  } else {
+    userSkill = await UserSkill.findOneAndUpdate(
+      { userId, skillId },
+      updateData,
+      { new: true, runValidators: true }
+    );
+    if (!userSkill) {
+      throw new NotFoundError('Skill not found on this user profile');
+    }
   }
 
   return userSkill;
 };
 
 const deleteUserSkill = async (userId, skillId) => {
-  // Verify User exists
   await getUserById(userId);
 
-  const result = await UserSkill.findOneAndDelete({ userId, skillId });
-  if (!result) {
-    throw new NotFoundError('Skill not found on this user profile');
+  let result;
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const deleted = await graphService.deleteUserSkill(userId, skillId);
+    if (!deleted) {
+      throw new NotFoundError('Skill not found on this user profile');
+    }
+    result = await UserSkill.findOneAndDelete({ userId, skillId });
+  } else {
+    result = await UserSkill.findOneAndDelete({ userId, skillId });
+    if (!result) {
+      throw new NotFoundError('Skill not found on this user profile');
+    }
   }
 
   return result;

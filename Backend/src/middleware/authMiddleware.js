@@ -20,7 +20,7 @@ const protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, config.jwtSecret);
 
-    const currentUser = await User.findById(decoded.id);
+    const currentUser = await User.findById(decoded.id).populate('targetRoleId');
     if (!currentUser) {
       return next(new UnauthorizedError('The user belonging to this token no longer exists.'));
     }
