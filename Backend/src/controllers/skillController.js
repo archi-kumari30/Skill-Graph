@@ -2,7 +2,7 @@ const skillService = require('../services/skillService');
 const { catchAsync } = require('../utils/helpers');
 
 const createSkill = catchAsync(async (req, res, next) => {
-  const skill = await skillService.createSkill(req.body);
+  const skill = await skillService.createSkill(req.body, req.user);
   res.status(201).json({
     success: true,
     data: { skill }
@@ -11,7 +11,7 @@ const createSkill = catchAsync(async (req, res, next) => {
 
 const getSkills = catchAsync(async (req, res, next) => {
   const { search, category } = req.query;
-  const skills = await skillService.getAllSkills({ search, category });
+  const skills = await skillService.getAllSkills({ search, category }, req.user);
   res.status(200).json({
     success: true,
     data: { skills }

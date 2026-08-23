@@ -5,7 +5,6 @@ const skillSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, 'Skill name is required'],
-      unique: true,
       trim: true
     },
     description: {
@@ -20,12 +19,24 @@ const skillSchema = new mongoose.Schema(
     aliases: {
       type: [String],
       default: []
+    },
+    isPersonal: {
+      type: Boolean,
+      default: false
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {
     timestamps: true
   }
 );
+
+// Compound unique index for { name, userId }
+skillSchema.index({ name: 1, userId: 1 }, { unique: true });
 
 // Search indexes
 skillSchema.index({ name: 'text', category: 'text', aliases: 'text' });

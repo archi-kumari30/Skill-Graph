@@ -126,29 +126,86 @@ const runCatalogSeed = async () => {
     { role: 'Frontend Developer', skill: 'HTML', requiredProficiency: 3, importance: 'required' },
     { role: 'Frontend Developer', skill: 'CSS', requiredProficiency: 3, importance: 'required' },
     { role: 'Frontend Developer', skill: 'React', requiredProficiency: 3, importance: 'required' },
+    { role: 'Frontend Developer', skill: 'TypeScript', requiredProficiency: 2, importance: 'important' },
     { role: 'Frontend Developer', skill: 'Git', requiredProficiency: 2, importance: 'important' },
+    { role: 'Frontend Developer', skill: 'REST API', requiredProficiency: 2, importance: 'important' },
 
     // Backend Developer
+    { role: 'Backend Developer', skill: 'JavaScript', requiredProficiency: 3, importance: 'required' },
     { role: 'Backend Developer', skill: 'Node.js', requiredProficiency: 3, importance: 'required' },
     { role: 'Backend Developer', skill: 'Express.js', requiredProficiency: 3, importance: 'required' },
+    { role: 'Backend Developer', skill: 'Python', requiredProficiency: 2, importance: 'important' },
+    { role: 'Backend Developer', skill: 'Java', requiredProficiency: 2, importance: 'important' },
+    { role: 'Backend Developer', skill: 'REST API', requiredProficiency: 3, importance: 'required' },
+    { role: 'Backend Developer', skill: 'SQL', requiredProficiency: 3, importance: 'required' },
     { role: 'Backend Developer', skill: 'MongoDB', requiredProficiency: 3, importance: 'required' },
-    { role: 'Backend Developer', skill: 'SQL', requiredProficiency: 2, importance: 'important' },
+    { role: 'Backend Developer', skill: 'Git', requiredProficiency: 2, importance: 'important' },
+    { role: 'Backend Developer', skill: 'Docker', requiredProficiency: 2, importance: 'important' },
 
-    // Full Stack
+    // Full Stack Developer
     { role: 'Full Stack Developer', skill: 'JavaScript', requiredProficiency: 4, importance: 'required' },
     { role: 'Full Stack Developer', skill: 'React', requiredProficiency: 4, importance: 'required' },
     { role: 'Full Stack Developer', skill: 'Node.js', requiredProficiency: 4, importance: 'required' },
     { role: 'Full Stack Developer', skill: 'MongoDB', requiredProficiency: 3, importance: 'required' },
+    { role: 'Full Stack Developer', skill: 'SQL', requiredProficiency: 3, importance: 'required' },
+    { role: 'Full Stack Developer', skill: 'REST API', requiredProficiency: 3, importance: 'required' },
+    { role: 'Full Stack Developer', skill: 'HTML', requiredProficiency: 3, importance: 'important' },
+    { role: 'Full Stack Developer', skill: 'CSS', requiredProficiency: 3, importance: 'important' },
+    { role: 'Full Stack Developer', skill: 'Git', requiredProficiency: 3, importance: 'required' },
 
-    // DevOps
+    // DevOps Engineer
     { role: 'DevOps Engineer', skill: 'Docker', requiredProficiency: 4, importance: 'required' },
     { role: 'DevOps Engineer', skill: 'Kubernetes', requiredProficiency: 3, importance: 'required' },
     { role: 'DevOps Engineer', skill: 'Git', requiredProficiency: 3, importance: 'required' },
+    { role: 'DevOps Engineer', skill: 'CI/CD Pipelines', requiredProficiency: 3, importance: 'required' },
+    { role: 'DevOps Engineer', skill: 'Terraform', requiredProficiency: 3, importance: 'required' },
+    { role: 'DevOps Engineer', skill: 'AWS', requiredProficiency: 3, importance: 'important' },
 
-    // Machine Learning
+    // Cloud Architect
+    { role: 'Cloud Architect', skill: 'AWS', requiredProficiency: 4, importance: 'required' },
+    { role: 'Cloud Architect', skill: 'GCP', requiredProficiency: 4, importance: 'required' },
+    { role: 'Cloud Architect', skill: 'Docker', requiredProficiency: 3, importance: 'required' },
+    { role: 'Cloud Architect', skill: 'Kubernetes', requiredProficiency: 3, importance: 'required' },
+    { role: 'Cloud Architect', skill: 'Terraform', requiredProficiency: 3, importance: 'required' },
+    { role: 'Cloud Architect', skill: 'System Design', requiredProficiency: 4, importance: 'required' },
+
+    // Data Scientist
+    { role: 'Data Scientist', skill: 'Python', requiredProficiency: 4, importance: 'required' },
+    { role: 'Data Scientist', skill: 'SQL', requiredProficiency: 3, importance: 'required' },
+    { role: 'Data Scientist', skill: 'DBMS', requiredProficiency: 3, importance: 'important' },
+    { role: 'Data Scientist', skill: 'Machine Learning', requiredProficiency: 4, importance: 'required' },
+    { role: 'Data Scientist', skill: 'Data Structures & Algorithms', requiredProficiency: 3, importance: 'important' },
+
+    // Machine Learning Engineer
     { role: 'Machine Learning Engineer', skill: 'Python', requiredProficiency: 4, importance: 'required' },
     { role: 'Machine Learning Engineer', skill: 'Machine Learning', requiredProficiency: 4, importance: 'required' },
-    { role: 'Machine Learning Engineer', skill: 'Deep Learning', requiredProficiency: 3, importance: 'required' }
+    { role: 'Machine Learning Engineer', skill: 'Deep Learning', requiredProficiency: 3, importance: 'required' },
+    { role: 'Machine Learning Engineer', skill: 'Natural Language Processing', requiredProficiency: 3, importance: 'important' },
+    { role: 'Machine Learning Engineer', skill: 'Data Structures & Algorithms', requiredProficiency: 3, importance: 'required' },
+    { role: 'Machine Learning Engineer', skill: 'SQL', requiredProficiency: 3, importance: 'important' },
+    { role: 'Machine Learning Engineer', skill: 'Git', requiredProficiency: 3, importance: 'important' },
+
+    // Cybersecurity Analyst
+    { role: 'Cybersecurity Analyst', skill: 'Cybersecurity', requiredProficiency: 4, importance: 'required' },
+    { role: 'Cybersecurity Analyst', skill: 'System Design', requiredProficiency: 3, importance: 'important' },
+    { role: 'Cybersecurity Analyst', skill: 'SQL', requiredProficiency: 2, importance: 'important' },
+    { role: 'Cybersecurity Analyst', skill: 'Git', requiredProficiency: 2, importance: 'important' },
+
+    // Mobile App Developer
+    { role: 'Mobile App Developer', skill: 'Mobile Development', requiredProficiency: 4, importance: 'required' },
+    { role: 'Mobile App Developer', skill: 'JavaScript', requiredProficiency: 3, importance: 'required' },
+    { role: 'Mobile App Developer', skill: 'React', requiredProficiency: 3, importance: 'required' },
+    { role: 'Mobile App Developer', skill: 'REST API', requiredProficiency: 3, importance: 'important' },
+    { role: 'Mobile App Developer', skill: 'Git', requiredProficiency: 3, importance: 'important' },
+
+    // QA Automation Engineer
+    { role: 'QA Automation Engineer', skill: 'Testing', requiredProficiency: 4, importance: 'required' },
+    { role: 'QA Automation Engineer', skill: 'JavaScript', requiredProficiency: 3, importance: 'required' },
+    { role: 'QA Automation Engineer', skill: 'Python', requiredProficiency: 3, importance: 'required' },
+    { role: 'QA Automation Engineer', skill: 'SQL', requiredProficiency: 3, importance: 'important' },
+    { role: 'QA Automation Engineer', skill: 'REST API', requiredProficiency: 3, importance: 'required' },
+    { role: 'QA Automation Engineer', skill: 'Git', requiredProficiency: 3, importance: 'important' },
+    { role: 'QA Automation Engineer', skill: 'CI/CD Pipelines', requiredProficiency: 2, importance: 'important' }
   ];
 
   for (const rs of roleSkills) {

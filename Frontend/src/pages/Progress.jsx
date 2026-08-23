@@ -153,14 +153,31 @@ const Progress = () => {
     }
   }, [user]);
 
-  // Fetch career-specific required skills when selected role changes
+  // Fetch career-specific recommended skills roadmap when selected role changes
   useEffect(() => {
     const fetchRoleSkillsData = async () => {
-      if (!selectedRoleId) return;
+      if (!selectedRoleId || !user?._id) return;
       try {
         setLoadingSkills(true);
-        const res = await api.get(`/roles/${selectedRoleId}/skills`);
-        setRoleSkills(res.data.skills || []);
+        const res = await api.get(`/recommendations/users/${user._id}/roles/${selectedRoleId}`);
+        const recs = res.data.recommendations || [];
+        
+        // Map recommendation data to match standard roleSkills schema shape for JSX compatibility
+        const mappedRoleSkills = recs.map(rec => ({
+          _id: rec.skill.id,
+          skillId: {
+            _id: rec.skill.id,
+            name: rec.skill.name,
+            category: rec.skill.category
+          },
+          requiredProficiency: rec.targetProficiency,
+          importance: rec.reason.includes('Critical') ? 'required' : (rec.reason.includes('Important') ? 'important' : 'nice_to_have'),
+          learningResources: rec.learningResources || [],
+          reason: rec.reason,
+          priority: rec.priority
+        }));
+        
+        setRoleSkills(mappedRoleSkills);
       } catch (err) {
         setRoleSkills([]);
       } finally {
@@ -168,7 +185,7 @@ const Progress = () => {
       }
     };
     fetchRoleSkillsData();
-  }, [selectedRoleId]);
+  }, [selectedRoleId, user]);
 
   const handleRoleChange = async (roleId) => {
     setSelectedRoleId(roleId);
@@ -180,6 +197,15 @@ const Progress = () => {
     } catch (err) {
       console.error('Failed to sync target career changes', err);
     }
+  };
+
+  const handleStartResource = async (resourceId, url) => {
+    try {
+      await api.post(`/learning/${resourceId}/start`);
+    } catch (err) {
+      console.error('Failed to start resource tracking:', err);
+    }
+    window.open(url, '_blank');
   };
 
   const toggleTopic = async (skillId, topicTitle) => {
@@ -242,14 +268,16 @@ const Progress = () => {
       {loadingSkills ? (
         <LoadingSpinner message="Calculating course criteria parameters..." />
       ) : roleSkills.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center max-w-md mx-auto space-y-3">
-          <BookOpen className="w-10 h-10 text-slate-355 mx-auto" />
-          <h4 className="font-extrabold text-slate-700">No Required Competencies Mapped</h4>
-          <p className="text-xs text-slate-400 italic">This career path does not currently mandate specific competency requirements.</p>
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center max-w-md mx-auto space-y-3 shadow-sm">
+          <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto" />
+          <h4 className="font-extrabold text-slate-800 text-base">All Requirements Met!</h4>
+          <p className="text-xs text-slate-455 font-semibold leading-relaxed">
+            You have satisfied all core required competencies and proficiencies for the <strong>{roles.find(r => r._id === selectedRoleId)?.name || 'selected'}</strong> career track.
+          </p>
         </div>
       ) : (
         <div className="space-y-8">
-          {roleSkills.map((rs) => {
+          {roleSkills.map((rs, index) => {
             const skillDoc = rs.skillId;
             if (!skillDoc) return null;
             
@@ -271,7 +299,11 @@ const Progress = () => {
             }
 
             return (
-              <div key={skillDoc._id} className="bg-white border border-slate-200/50 rounded-3xl p-6 shadow-sm space-y-6">
+              <div key={skillDoc._id} className="bg-white border border-slate-200/50 rounded-3xl p-6 shadow-sm space-y-6 relative overflow-hidden">
+                {/* Step Connector Label */}
+                <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[9.5px] uppercase font-black tracking-wider px-3.5 py-1.5 rounded-bl-2xl">
+                  Step {index + 1} of {roleSkills.length}
+                </div>
                 
                 {/* Summary Row */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4.5 gap-4">
@@ -280,7 +312,7 @@ const Progress = () => {
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-50 text-indigo-750 border border-indigo-100">
                         {skillDoc.category}
                       </span>
-                      <h3 className="font-extrabold text-slate-800 text-base leading-none">{skillDoc.name}</h3>
+                      <h3 className="font-extrabold text-slate-800 text-base leading-none pr-20">{skillDoc.name}</h3>
                     </div>
                     <p className="text-[10.5px] text-slate-455 font-semibold">
                       Target Proficiency: Level {rs.requiredProficiency} &bull; Urgency: <span className="uppercase text-indigo-650">{rs.importance}</span>
@@ -393,6 +425,35 @@ const Progress = () => {
                     })}
                   </div>
                 </div>
+
+                {/* Learning Resources */}
+                {rs.learningResources && rs.learningResources.length > 0 && (
+                  <div className="space-y-3.5 border-t border-slate-100 pt-4.5">
+                    <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                      <BookOpen className="w-3.5 h-3.5 mr-1" />
+                      Recommended Learning Resources
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {rs.learningResources.map((res) => (
+                        <div key={res.id} className="p-4 border border-slate-200 rounded-2xl bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between text-xs font-semibold">
+                          <div className="space-y-1">
+                            <span className="block font-black text-slate-805 leading-snug">{res.title}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">
+                              Difficulty: {res.difficulty} &bull; Est. Hours: {res.estimatedHours}h
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleStartResource(res.id, res.url)}
+                            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                          >
+                            Start Learning
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               </div>
             );

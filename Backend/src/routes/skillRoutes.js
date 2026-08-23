@@ -8,7 +8,7 @@ router.use(protect);
 
 router.route('/')
   .get(skillController.getSkills)
-  .post(restrictTo('admin', 'manager'), skillController.createSkill);
+  .post(skillController.createSkill);
 
 router.route('/:id')
   .get(skillController.getSkill)

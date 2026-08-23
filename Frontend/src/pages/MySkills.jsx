@@ -118,7 +118,8 @@ const MySkills = () => {
       const res = await api.post('/skills', {
         name: newSkillName,
         category: newSkillCategory,
-        description: newSkillDesc
+        description: newSkillDesc,
+        isPersonal: true
       });
       // Set newly created skill as active selection
       setSelectedSkill(res.data.skill);
@@ -324,7 +325,7 @@ const MySkills = () => {
                   </button>
                 ))}
                 {filteredGlobalSkills.length === 0 && (
-                  <p className="text-[10px] text-slate-400 italic p-3 text-center">No unlinked skills match query.</p>
+                  <p className="text-[10px] text-slate-400 italic p-3 text-center">"{searchQuery}" isn't in the catalog.</p>
                 )}
               </div>
 
@@ -334,12 +335,13 @@ const MySkills = () => {
                   type="button"
                   onClick={() => {
                     setIsAddOpen(false);
+                    setNewSkillName(searchQuery);
                     setIsCreateOpen(true);
                   }}
-                  className="inline-flex items-center text-[10px] text-indigo-650 hover:underline"
+                  className="inline-flex items-center text-[10px] text-indigo-650 hover:underline font-bold"
                 >
                   <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                  Create missing catalog skill
+                  + Add Personal Skill
                 </button>
               </div>
 
@@ -451,12 +453,12 @@ const MySkills = () => {
         </div>
       )}
 
-      {/* MODAL 3: CREATE GLOBAL CATALOG ENTRY */}
+      {/* MODAL 3: ADD PERSONAL SKILL ENTRY */}
       {isCreateOpen && (
         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5 border border-slate-200/50 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-800 text-base">Create New Catalog Item</h3>
+              <h3 className="font-extrabold text-slate-800 text-base">Add Personal Skill</h3>
               <button
                 onClick={() => {
                   setIsCreateOpen(false);

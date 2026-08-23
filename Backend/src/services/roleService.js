@@ -47,6 +47,10 @@ const deleteRole = async (id) => {
 // Role Skill Requirements
 const getRoleSkills = async (roleId) => {
   await getRoleById(roleId);
+  if (process.env.USE_GRAPH_DB === 'true') {
+    const graphService = require('./graphService');
+    return await graphService.getCareerRequirements(roleId);
+  }
   return await RoleSkill.find({ roleId }).populate('skillId');
 };
 
