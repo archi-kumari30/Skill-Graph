@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Network, AlertCircle, Loader, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Network, AlertCircle, Loader, ArrowRight, ArrowLeft, X, CheckCircle } from 'lucide-react';
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, forgotPassword } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Forgot password modal state
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotResetToken, setForgotResetToken] = useState('');
+  const [forgotError, setForgotError] = useState('');
 
   const isExpired = searchParams.get('expired') === 'true';
 
@@ -31,10 +39,26 @@ const Login = () => {
     }
   };
 
-  const handleShortcut = (shEmail, shPass) => {
-    setEmail(shEmail);
-    setPassword(shPass);
-    setError('');
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      return setForgotError('Please enter your account email.');
+    }
+    setForgotError('');
+    setForgotMessage('');
+    setForgotResetToken('');
+    setForgotLoading(true);
+    try {
+      const res = await forgotPassword(forgotEmail);
+      setForgotMessage(res.message || 'If an account exists, a reset link has been dispatched.');
+      if (res.resetToken) {
+        setForgotResetToken(res.resetToken);
+      }
+    } catch (err) {
+      setForgotError(err.message || 'Unable to process reset request. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -94,9 +118,24 @@ const Login = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotModalOpen(true);
+                    setForgotEmail(email);
+                    setForgotMessage('');
+                    setForgotResetToken('');
+                    setForgotError('');
+                  }}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <input
                 id="password"
                 name="password"
@@ -132,6 +171,83 @@ const Login = () => {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {forgotModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative">
+            <button
+              onClick={() => setForgotModalOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Reset Password</h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Enter your registered account email and we will generate a secure password reset link.
+            </p>
+
+            {forgotError && (
+              <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-700 p-3 rounded-lg text-xs font-semibold flex items-center">
+                <AlertCircle className="w-4 h-4 mr-2 shrink-0 text-rose-500" />
+                <span>{forgotError}</span>
+              </div>
+            )}
+
+            {forgotMessage ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-emerald-800 text-xs">
+                <div className="flex items-center mb-2 font-bold text-emerald-900">
+                  <CheckCircle className="w-4 h-4 mr-1.5 text-emerald-600" />
+                  Request Processed
+                </div>
+                <p className="mb-3">{forgotMessage}</p>
+                {forgotResetToken && (
+                  <div className="mt-2 pt-2 border-t border-emerald-200/60">
+                    <span className="text-[11px] font-semibold text-emerald-700 block mb-1">
+                      Direct Recovery Link (Development / Test Environment):
+                    </span>
+                    <Link
+                      to={`/reset-password/${forgotResetToken}`}
+                      onClick={() => setForgotModalOpen(false)}
+                      className="inline-flex items-center font-bold text-indigo-600 hover:underline text-xs"
+                    >
+                      Click here to reset your password now &rarr;
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Account Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  {forgotLoading ? (
+                    <Loader className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

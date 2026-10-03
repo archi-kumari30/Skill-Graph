@@ -9,28 +9,48 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (err) {
-        // Clear corrupt storage
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+      if (storedToken && storedUser) {
+        try {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        } catch (err) {
+          // Clear corrupt storage
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      } else {
+        // Attempt silent cookie recovery if token is absent
+        try {
+          const res = await api.post('/auth/refresh');
+          const refreshedToken = res.data?.accessToken || res.data?.token;
+          const refreshedUser = res.data?.user;
+          if (refreshedToken && refreshedUser) {
+            localStorage.setItem('token', refreshedToken);
+            localStorage.setItem('user', JSON.stringify(refreshedUser));
+            setToken(refreshedToken);
+            setUser(refreshedUser);
+          }
+        } catch (e) {
+          // No active session cookie; continue as guest
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    const { user: loggedUser, token: loggedToken } = response.data;
+    const loggedUser = response.data?.user || response.user;
+    const loggedToken = response.data?.accessToken || response.data?.token || response.token;
 
-    localStorage.setItem('token', loggedToken);
-    localStorage.setItem('user', JSON.stringify(loggedUser));
+    if (loggedToken) localStorage.setItem('token', loggedToken);
+    if (loggedUser) localStorage.setItem('user', JSON.stringify(loggedUser));
 
     setToken(loggedToken);
     setUser(loggedUser);
@@ -39,21 +59,35 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     const response = await api.post('/auth/register', userData);
-    const { user: registeredUser, token: registeredToken } = response.data;
+    const registeredUser = response.data?.user || response.user;
+    const registeredToken = response.data?.accessToken || response.data?.token || response.token;
 
-    localStorage.setItem('token', registeredToken);
-    localStorage.setItem('user', JSON.stringify(registeredUser));
+    if (registeredToken) localStorage.setItem('token', registeredToken);
+    if (registeredUser) localStorage.setItem('user', JSON.stringify(registeredUser));
 
     setToken(registeredToken);
     setUser(registeredUser);
     return registeredUser;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      // Swallowed on network failure
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+  };
+
+  const forgotPassword = async (email) => {
+    return await api.post('/auth/forgot-password', { email });
+  };
+
+  const resetPassword = async (resetToken, password) => {
+    return await api.post(`/auth/reset-password/${resetToken}`, { password });
   };
 
   const updateUserProfile = (updatedUser) => {
@@ -69,6 +103,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    forgotPassword,
+    resetPassword,
     updateUserProfile
   };
 

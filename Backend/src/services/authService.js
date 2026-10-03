@@ -1,19 +1,52 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const AuthToken = require('../models/AuthToken');
 const config = require('../config/config');
 const { BadRequestError, UnauthorizedError, ConflictError } = require('../utils/customErrors');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn
+const hashToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
+
+const generateToken = (id, role = 'employee') => {
+  return jwt.sign({ id, role }, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn || '15m'
   });
 };
 
-const register = async (userData) => {
+const generateTokens = async (user, req) => {
+  const accessToken = jwt.sign(
+    { id: user._id, role: user.accountRole },
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiresIn || '15m' }
+  );
+
+  const rawRefreshToken = crypto.randomBytes(40).toString('hex');
+  const tokenHash = hashToken(rawRefreshToken);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  await AuthToken.create({
+    userId: user._id,
+    tokenHash,
+    expiresAt,
+    revoked: false,
+    ipAddress: req?.ip || req?.connection?.remoteAddress || '',
+    userAgent: req?.headers ? req.headers['user-agent'] : ''
+  });
+
+  return { accessToken, refreshToken: rawRefreshToken, expiresAt };
+};
+
+const register = async (userData, req) => {
   const { name, email, password, accountRole, department, branch, college, yearOfStudy } = userData;
 
   if (!email || !password || !name) {
     throw new BadRequestError('Please provide name, email, and password');
+  }
+
+  if (password.length < 6) {
+    throw new BadRequestError('Password must be at least 6 characters long');
   }
 
   const existingUser = await User.findOne({ email });
@@ -25,43 +58,173 @@ const register = async (userData) => {
     name,
     email,
     password,
-    accountRole: accountRole || 'employee',
+    accountRole: accountRole || 'student',
     department: department || '',
     branch: branch || '',
     college: college || '',
     yearOfStudy: yearOfStudy || ''
   });
 
-  const token = generateToken(user._id);
+  const { accessToken, refreshToken } = await generateTokens(user, req);
 
-  // Return user without password
   const userResponse = user.toObject();
   delete userResponse.password;
 
-  return { user: userResponse, token };
+  return {
+    user: userResponse,
+    token: accessToken,
+    accessToken,
+    refreshToken
+  };
 };
 
-const login = async (email, password) => {
+const login = async (email, password, req) => {
   if (!email || !password) {
     throw new BadRequestError('Please provide email and password');
   }
 
-  // Explicitly select password field since it is selected false by default
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.correctPassword(password, user.password))) {
     throw new UnauthorizedError('Incorrect email or password');
   }
 
-  const token = generateToken(user._id);
+  const { accessToken, refreshToken } = await generateTokens(user, req);
 
   const userResponse = user.toObject();
   delete userResponse.password;
 
-  return { user: userResponse, token };
+  return {
+    user: userResponse,
+    token: accessToken,
+    accessToken,
+    refreshToken
+  };
+};
+
+const rotateRefreshToken = async (oldRefreshToken, req) => {
+  if (!oldRefreshToken) {
+    throw new UnauthorizedError('Refresh token required');
+  }
+
+  const oldHash = hashToken(oldRefreshToken);
+  const tokenDoc = await AuthToken.findOne({ tokenHash: oldHash });
+
+  if (!tokenDoc) {
+    throw new UnauthorizedError('Invalid refresh token');
+  }
+
+  // Token reuse compromise detection:
+  // If an already revoked token is used, revoke ALL tokens for this user!
+  if (tokenDoc.revoked) {
+    await AuthToken.updateMany({ userId: tokenDoc.userId }, { revoked: true });
+    throw new UnauthorizedError('Token reuse detected. All active sessions have been revoked for security. Please log in again.');
+  }
+
+  // Check expiration
+  if (new Date() > tokenDoc.expiresAt) {
+    throw new UnauthorizedError('Refresh token expired. Please log in again.');
+  }
+
+  // Revoke the old token
+  tokenDoc.revoked = true;
+  await tokenDoc.save();
+
+  // Load user
+  const user = await User.findById(tokenDoc.userId).populate('targetRoleId');
+  if (!user) {
+    throw new UnauthorizedError('The user belonging to this token no longer exists.');
+  }
+
+  // Issue new pair
+  const { accessToken, refreshToken } = await generateTokens(user, req);
+
+  const userResponse = user.toObject();
+  delete userResponse.password;
+
+  return {
+    user: userResponse,
+    token: accessToken,
+    accessToken,
+    refreshToken
+  };
+};
+
+const logout = async (refreshToken) => {
+  if (refreshToken) {
+    const hash = hashToken(refreshToken);
+    await AuthToken.updateOne({ tokenHash: hash }, { revoked: true });
+  }
+  return { success: true };
+};
+
+const forgotPassword = async (email) => {
+  if (!email) {
+    throw new BadRequestError('Please provide an email address');
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    // Return standard response to avoid user email enumeration
+    return {
+      success: true,
+      message: 'If an account exists with that email, a password reset link has been dispatched.'
+    };
+  }
+
+  const rawResetToken = crypto.randomBytes(32).toString('hex');
+  user.resetPasswordToken = hashToken(rawResetToken);
+  user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await user.save({ validateBeforeSave: false });
+
+  return {
+    success: true,
+    message: 'If an account exists with that email, a password reset link has been dispatched.',
+    resetToken: rawResetToken // Returned for testing & dev environments
+  };
+};
+
+const resetPassword = async (token, newPassword) => {
+  if (!token || !newPassword) {
+    throw new BadRequestError('Reset token and new password are required');
+  }
+
+  if (newPassword.length < 6) {
+    throw new BadRequestError('Password must be at least 6 characters long');
+  }
+
+  const hashedToken = hashToken(token);
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    throw new BadRequestError('Password reset token is invalid or has expired');
+  }
+
+  user.password = newPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+
+  // Invalidate all active sessions for this user on password reset
+  await AuthToken.updateMany({ userId: user._id }, { revoked: true });
+
+  return {
+    success: true,
+    message: 'Password reset successfully'
+  };
 };
 
 module.exports = {
   register,
   login,
-  generateToken
+  rotateRefreshToken,
+  logout,
+  forgotPassword,
+  resetPassword,
+  generateToken,
+  generateTokens,
+  hashToken
 };

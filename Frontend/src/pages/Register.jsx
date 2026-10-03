@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Network, AlertCircle, Loader, ArrowLeft } from 'lucide-react';
+import { Network, AlertCircle, Loader, ArrowLeft, GraduationCap, Briefcase } from 'lucide-react';
 
 const Register = () => {
   const { register } = useAuth();
@@ -10,6 +10,7 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
+    accountRole: 'student',
     branch: 'Computer Science',
     college: '',
     yearOfStudy: '3rd Year'
@@ -25,9 +26,16 @@ const Register = () => {
     }));
   };
 
+  const handleRoleSelect = (role) => {
+    setFormData((prev) => ({
+      ...prev,
+      accountRole: role
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, email, password, branch, college, yearOfStudy } = formData;
+    const { name, email, password, accountRole, branch, college, yearOfStudy } = formData;
     if (!name || !email || !password || !college) {
       return setError('Please fill in all required fields.');
     }
@@ -38,8 +46,8 @@ const Register = () => {
         name,
         email,
         password,
-        accountRole: 'employee',
-        department: 'Engineering',
+        accountRole: accountRole || 'student',
+        department: accountRole === 'student' ? 'Academic' : 'Engineering',
         branch,
         college,
         yearOfStudy
@@ -102,6 +110,39 @@ const Register = () => {
           )}
 
           <form className="space-y-5" onSubmit={handleSubmit}>
+            {/* Account Role Selection */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                I am registering as:
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleRoleSelect('student')}
+                  className={`flex items-center justify-center p-3 rounded-xl border text-xs font-bold transition-all ${
+                    formData.accountRole === 'student'
+                      ? 'border-indigo-600 bg-indigo-50/70 text-indigo-700 shadow-sm'
+                      : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4 mr-2 text-indigo-600" />
+                  <span>Student Learner</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleSelect('employee')}
+                  className={`flex items-center justify-center p-3 rounded-xl border text-xs font-bold transition-all ${
+                    formData.accountRole === 'employee'
+                      ? 'border-indigo-600 bg-indigo-50/70 text-indigo-700 shadow-sm'
+                      : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <Briefcase className="w-4 h-4 mr-2 text-indigo-600" />
+                  <span>Industry Engineer</span>
+                </button>
+              </div>
+            </div>
+
             <div>
               <label htmlFor="name" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                 Full Name <span className="text-rose-500">*</span>

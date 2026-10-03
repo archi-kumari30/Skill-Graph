@@ -8,6 +8,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import MySkills from './pages/MySkills';
 import SkillDetail from './pages/SkillDetail';
@@ -107,6 +108,14 @@ const App = () => {
             element={
               <PublicRoute>
                 <Register />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/reset-password/:token"
+            element={
+              <PublicRoute>
+                <ResetPassword />
               </PublicRoute>
             }
           />
