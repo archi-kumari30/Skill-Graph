@@ -25,8 +25,8 @@ const userSchema = new mongoose.Schema(
     accountRole: {
       type: String,
       enum: {
-        values: ['admin', 'manager', 'employee'],
-        message: 'Role must be admin, manager, or employee'
+        values: ['admin', 'manager', 'employee', 'student'],
+        message: 'Role must be admin, manager, employee, or student'
       },
       default: 'employee'
     },
@@ -37,6 +37,22 @@ const userSchema = new mongoose.Schema(
     targetRoleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Role'
+    },
+    savedRoleIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Role'
+      }
+    ],
+    resetPasswordToken: {
+      type: String,
+      select: false,
+      default: null
+    },
+    resetPasswordExpires: {
+      type: Date,
+      select: false,
+      default: null
     },
     branch: {
       type: String,

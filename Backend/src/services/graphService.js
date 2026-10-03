@@ -1103,6 +1103,88 @@ const completeLearningResource = async (userId, resourceId) => {
   return null;
 };
 
+// Resilient wrapper for real-time mutations to ensure MongoDB operations never fail if Neo4j is offline
+const safeGraphOperation = async (opName, fn) => {
+  try {
+    const { getDriver } = require('../config/cognodb');
+    if (!getDriver || !getDriver()) {
+      return null;
+    }
+    return await fn();
+  } catch (err) {
+    console.warn(`[COGNODB RESILIENCE] ${opName} skipped or failed: ${err.message}`);
+    return null;
+  }
+};
+
+const upsertSkillNode = async (skillDoc) => {
+  return safeGraphOperation('upsertSkillNode', async () => {
+    const id = skillDoc._id ? skillDoc._id.toString() : skillDoc.id;
+    const name = skillDoc.name || '';
+    const category = skillDoc.category || '';
+    const difficulty = skillDoc.difficulty || 'intermediate';
+    const isPersonal = Boolean(skillDoc.isPersonal);
+
+    const cypher = `
+      MERGE (s:Skill { id: $id })
+      SET s.name = $name,
+          s.category = $category,
+          s.difficulty = $difficulty,
+          s.isPersonal = $isPersonal
+      RETURN s
+    `;
+    return await runQuery(cypher, { id, name, category, difficulty, isPersonal });
+  });
+};
+
+const removeSkillNode = async (skillId) => {
+  return safeGraphOperation('removeSkillNode', async () => {
+    const id = skillId ? skillId.toString() : '';
+    if (!id) return null;
+    const cypher = `
+      MATCH (s:Skill { id: $id })
+      DETACH DELETE s
+    `;
+    return await runQuery(cypher, { id });
+  });
+};
+
+const upsertRelationshipEdge = async (relDoc) => {
+  return safeGraphOperation('upsertRelationshipEdge', async () => {
+    const fromId = (relDoc.sourceSkillId || relDoc.fromSkillId || '').toString();
+    const toId = (relDoc.targetSkillId || relDoc.toSkillId || '').toString();
+    const relType = relDoc.relationshipType || relDoc.relationType || 'related';
+    const strength = typeof relDoc.strength === 'number' ? relDoc.strength : 1.0;
+
+    if (!fromId || !toId) return null;
+
+    const cypher = `
+      MATCH (a:Skill { id: $fromId }), (b:Skill { id: $toId })
+      MERGE (a)-[r:RELATION { relationshipType: $relType }]->(b)
+      SET r.strength = $strength
+      RETURN r
+    `;
+    return await runQuery(cypher, { fromId, toId, relType, strength });
+  });
+};
+
+const removeRelationshipEdge = async (fromSkillId, toSkillId, relType) => {
+  return safeGraphOperation('removeRelationshipEdge', async () => {
+    const fromId = fromSkillId ? fromSkillId.toString() : '';
+    const toId = toSkillId ? toSkillId.toString() : '';
+    const type = relType || 'related';
+
+    if (!fromId || !toId) return null;
+
+    const cypher = `
+      MATCH (a:Skill { id: $fromId })-[r:RELATION]->(b:Skill { id: $toId })
+      WHERE r.relationshipType = $type
+      DELETE r
+    `;
+    return await runQuery(cypher, { fromId, toId, type });
+  });
+};
+
 module.exports = {
   getUserSkills,
   getCareerRequirements,
@@ -1119,5 +1201,9 @@ module.exports = {
   startLearningResource,
   updateLearningProgress,
   completeLearningResource,
-  runQuery
+  runQuery,
+  upsertSkillNode,
+  removeSkillNode,
+  upsertRelationshipEdge,
+  removeRelationshipEdge
 };

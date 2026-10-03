@@ -35,6 +35,38 @@ const userSkillSchema = new mongoose.Schema(
       type: String,
       default: 'self',
       trim: true
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    proofUrl: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    verificationStatus: {
+      type: String,
+      enum: {
+        values: ['unverified', 'pending', 'verified', 'rejected'],
+        message: 'Status must be unverified, pending, verified, or rejected'
+      },
+      default: 'unverified',
+      index: true
+    },
+    verificationNotes: {
+      type: String,
+      default: ''
+    },
+    verifiedAt: {
+      type: Date,
+      default: null
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {

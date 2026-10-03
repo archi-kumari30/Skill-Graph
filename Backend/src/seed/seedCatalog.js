@@ -7,6 +7,7 @@ const RoleSkill = require('../models/RoleSkill');
 const LearningResource = require('../models/LearningResource');
 const Company = require('../models/Company');
 const Job = require('../models/Job');
+const Topic = require('../models/Topic');
 
 const runCatalogSeed = async () => {
   // 1. Seed 30 Skills (Idempotent)
@@ -652,6 +653,128 @@ const runCatalogSeed = async () => {
         resource.difficulty = r.difficulty;
         resource.estimatedHours = r.estimatedHours;
         await resource.save();
+      }
+    }
+  }
+
+  // 6. Seed Sub-Topics for Key Skills (Idempotent)
+  const skillTopics = [
+    {
+      skillName: 'HTML',
+      topics: [
+        { title: 'HTML Document Structure & Tags', slug: 'html-basics', order: 1, summary: 'Doctype, head, body, headings, and paragraph elements' },
+        { title: 'Semantic Tags & Accessibility', slug: 'semantic-html', order: 2, summary: 'Header, nav, main, section, article, footer, and ARIA labels' },
+        { title: 'HTML Forms & Inputs', slug: 'forms-inputs', order: 3, summary: 'Form validation, text inputs, radio, checkboxes, select, and submit' },
+        { title: 'Tables & Media Elements', slug: 'tables-media', order: 4, summary: 'Table rows, cells, headers, images, audio, and video' },
+        { title: 'Canvas & SVG Graphics', slug: 'canvas-svg', order: 5, summary: '2D pixel drawing context and scalable vector graphics' },
+        { title: 'Web Storage & Geolocation APIs', slug: 'html-apis', order: 6, summary: 'LocalStorage, sessionStorage, and browser APIs' },
+        { title: 'Metadata & SEO Optimization', slug: 'seo-metadata', order: 7, summary: 'Meta tags, viewport, OpenGraph tags, and search indexing' }
+      ]
+    },
+    {
+      skillName: 'CSS',
+      topics: [
+        { title: 'CSS Selectors & Specificity', slug: 'css-selectors', order: 1, summary: 'Class, ID, attribute, pseudo-classes, and specificity cascade' },
+        { title: 'Box Model & Display Properties', slug: 'box-model', order: 2, summary: 'Margin, border, padding, content, inline vs block' },
+        { title: 'CSS Flexbox Layout', slug: 'flexbox', order: 3, summary: 'Flex container, flex items, justify-content, and align-items' },
+        { title: 'CSS Grid Layout', slug: 'css-grid', order: 4, summary: 'Grid templates, columns, rows, areas, and gap properties' },
+        { title: 'Responsive Design & Media Queries', slug: 'responsive-design', order: 5, summary: 'Breakpoints, mobile-first design, and viewport units' },
+        { title: 'Transitions & Keyframe Animations', slug: 'animations', order: 6, summary: 'Transition timing, transform properties, and keyframe loops' },
+        { title: 'Custom Properties & Modern CSS', slug: 'css-variables', order: 7, summary: 'CSS custom properties, themes, and calc functions' }
+      ]
+    },
+    {
+      skillName: 'JavaScript',
+      topics: [
+        { title: 'Variables, Data Types & Scopes', slug: 'variables-datatypes', order: 1, summary: 'Let, const, var, primitives, objects, and block scoping' },
+        { title: 'Functions, Arrow Syntax & Closures', slug: 'functions-closures', order: 2, summary: 'Function expressions, lexical scoping, and closure memory' },
+        { title: 'DOM Tree & Event Handling', slug: 'dom-manipulation', order: 3, summary: 'Query selectors, event listeners, bubbling, and delegation' },
+        { title: 'Promises, Async/Await & Event Loop', slug: 'async-promises', order: 4, summary: 'Microtasks, macrotasks, async functions, and concurrency' },
+        { title: 'ES6+ Destructuring, Modules & Classes', slug: 'es6-features', order: 5, summary: 'Spread syntax, object destructuring, imports/exports, and classes' },
+        { title: 'Array Methods & Functional Programming', slug: 'array-methods', order: 6, summary: 'Map, filter, reduce, find, some, and every operations' },
+        { title: 'Error Handling & Try/Catch', slug: 'error-handling', order: 7, summary: 'Custom error classes, stack traces, and finally blocks' },
+        { title: 'Fetch API & AJAX Requests', slug: 'fetch-api', order: 8, summary: 'HTTP methods, headers, JSON serialization, and response parsing' },
+        { title: 'Prototypes & Inheritance', slug: 'prototypes', order: 9, summary: 'Prototype chain, Object.create, and class inheritance' },
+        { title: 'Web Storage & Cookie Management', slug: 'web-storage', order: 10, summary: 'Client-side state storage, session lifecycles, and security' }
+      ]
+    },
+    {
+      skillName: 'React',
+      topics: [
+        { title: 'JSX Syntax & Element Rendering', slug: 'jsx-elements', order: 1, summary: 'JSX compilation, expression embedding, and virtual DOM' },
+        { title: 'Components & Props Flow', slug: 'components-props', order: 2, summary: 'Functional components, prop passing, and unidirectional data flow' },
+        { title: 'Component State with useState', slug: 'state-usestate', order: 3, summary: 'State management, updater functions, and re-rendering' },
+        { title: 'Side Effects with useEffect', slug: 'side-effects-useeffect', order: 4, summary: 'Lifecycle timing, dependency arrays, and cleanup functions' },
+        { title: 'Global State with Context API', slug: 'context-api', order: 5, summary: 'CreateContext, Provider pattern, and useContext hook' },
+        { title: 'Custom React Hooks', slug: 'custom-hooks', order: 6, summary: 'Extracting reusable component state and lifecycle logic' },
+        { title: 'Client-Side Routing', slug: 'react-router', order: 7, summary: 'React Router DOM, route guards, dynamic params, and navigation' },
+        { title: 'Performance Optimization & Memoization', slug: 'performance-memo', order: 8, summary: 'React.memo, useMemo, and useCallback optimization' }
+      ]
+    },
+    {
+      skillName: 'Node.js',
+      topics: [
+        { title: 'V8 Engine & Event-Driven Architecture', slug: 'node-architecture', order: 1, summary: 'Single-threaded event loop, libuv, and non-blocking I/O' },
+        { title: 'CommonJS & ES Modules', slug: 'modules-system', order: 2, summary: 'Require vs import, module caching, and package manifests' },
+        { title: 'File System & Stream Processing', slug: 'fs-streams', order: 3, summary: 'Readable/writable streams, piping, and buffer manipulation' },
+        { title: 'Event Emitters & Event Loop', slug: 'event-emitter', order: 4, summary: 'Custom event listeners, emitting events, and memory leaks' },
+        { title: 'Native HTTP & Server Basics', slug: 'http-module', order: 5, summary: 'Creating raw HTTP servers, request/response headers' },
+        { title: 'NPM & Package Management', slug: 'npm-scripts', order: 6, summary: 'Semantic versioning, dependencies, and lockfile resolution' },
+        { title: 'Process Monitoring & Debugging', slug: 'debugging-profiling', order: 7, summary: 'Process signals, memory profiling, and inspection tools' }
+      ]
+    },
+    {
+      skillName: 'Express.js',
+      topics: [
+        { title: 'Express App & Routing Setup', slug: 'express-setup', order: 1, summary: 'Express application instance, router mounting, and paths' },
+        { title: 'Middleware Pipeline & Execution', slug: 'middleware-pipeline', order: 2, summary: 'Next function, request mutation, and middleware chains' },
+        { title: 'RESTful Controllers & Response Formatting', slug: 'rest-endpoints', order: 3, summary: 'Status codes, JSON envelopes, and controller delegation' },
+        { title: 'Request Validation & Sanitization', slug: 'request-validation', order: 4, summary: 'Query, param, and body validation guards' },
+        { title: 'Centralized Error Handling', slug: 'error-handling', order: 5, summary: 'Error middleware, operational errors, and HTTP status mapping' },
+        { title: 'Security Headers & CORS Policies', slug: 'security-cors-helmet', order: 6, summary: 'Helmet security headers, CORS origins, and rate limiting' }
+      ]
+    },
+    {
+      skillName: 'MongoDB',
+      topics: [
+        { title: 'Document Model & NoSQL Concepts', slug: 'nosql-concepts', order: 1, summary: 'BSON format, document flexibility, and horizontal scaling' },
+        { title: 'CRUD Operations & Query Operators', slug: 'crud-operations', order: 2, summary: 'Find, insert, update, delete, and comparison operators' },
+        { title: 'Mongoose Schemas & Model Lifecycle', slug: 'mongoose-schemas', order: 3, summary: 'Schema definitions, validations, pre/post hooks, and virtuals' },
+        { title: 'Indexing & Performance Optimization', slug: 'indexing-performance', order: 4, summary: 'Compound indexes, unique indexes, TTL, and explain plans' },
+        { title: 'Aggregation Pipelines', slug: 'aggregation-pipeline', order: 5, summary: 'Match, group, project, unwind, and multi-stage joins' },
+        { title: 'Data Modeling & Relationships', slug: 'data-modeling', order: 6, summary: 'Referencing vs embedding, normalized vs denormalized schemas' }
+      ]
+    },
+    {
+      skillName: 'Git',
+      topics: [
+        { title: 'Git Initialization & Commits', slug: 'git-init-commits', order: 1, summary: 'Staging area, git status, diff, and atomic commits' },
+        { title: 'Branch Management & Merging', slug: 'branching-merging', order: 2, summary: 'Branch creation, checkout, fast-forward and 3-way merges' },
+        { title: 'Remote Repositories & Collaboration', slug: 'remote-github', order: 3, summary: 'Remote tracking branches, git fetch, pull, and push' },
+        { title: 'Rebasing & Conflict Resolution', slug: 'rebase-conflict-resolution', order: 4, summary: 'Interactive rebase, squash commits, and merge conflicts' }
+      ]
+    }
+  ];
+
+  for (const st of skillTopics) {
+    const skillId = skillMap[st.skillName];
+    if (skillId) {
+      for (const t of st.topics) {
+        let topic = await Topic.findOne({ skillId, slug: t.slug });
+        if (!topic) {
+          await Topic.create({
+            skillId,
+            title: t.title,
+            slug: t.slug,
+            order: t.order,
+            summary: t.summary
+          });
+        } else {
+          topic.title = t.title;
+          topic.order = t.order;
+          topic.summary = t.summary;
+          await topic.save();
+        }
       }
     }
   }

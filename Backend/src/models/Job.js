@@ -56,6 +56,19 @@ const jobSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  salaryMin: {
+    type: Number,
+    default: null
+  },
+  salaryMax: {
+    type: Number,
+    default: null
+  },
+  salaryCurrency: {
+    type: String,
+    default: 'USD',
+    trim: true
+  },
   requirements: [jobRequirementSchema],
   postedAt: {
     type: Date,
