@@ -4,7 +4,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
+const mongoSanitize = require('express-mongo-sanitize');
 
+const config = require('./config/config');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const { NotFoundError } = require('./utils/customErrors');
 
@@ -28,8 +31,11 @@ const app = express();
 // 1. Security HTTP Headers
 app.use(helmet());
 
-// 2. CORS setup
-app.use(cors());
+// 2. CORS setup (supporting credentials for HTTP-only cookies)
+app.use(cors({
+  origin: config.clientUrl || 'http://localhost:5173',
+  credentials: true
+}));
 
 // 3. API Rate Limiting (skipped in test mode for testing convenience)
 const limiter = rateLimit({
@@ -42,19 +48,25 @@ const limiter = rateLimit({
     }
   }
 });
-if (process.env.NODE_ENV !== 'test') {
+if (config.nodeEnv !== 'test') {
   app.use('/api', limiter);
 }
 
 // 4. Request Logging using Morgan
-if (process.env.NODE_ENV !== 'test') {
+if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
 // 5. Body parser (reading data from body into req.body)
 app.use(express.json({ limit: '10kb' }));
 
-// 6. Routes
+// 6. Cookie parser with signing support
+app.use(cookieParser(config.cookieSecret));
+
+// 7. Data Sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// 8. Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/skills', skillRoutes);
@@ -69,21 +81,31 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// 9. Comprehensive Health Check endpoint (mounted at /health and /api/health)
+app.get(['/health', '/api/health'], (req, res) => {
+  const mongoose = require('mongoose');
+  const { getDriver } = require('./config/cognodb');
+  const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const graphStatus = getDriver && getDriver() ? 'connected' : (config.useGraphDb ? 'connecting' : 'disabled');
+
   res.status(200).json({
     success: true,
     status: 'UP',
-    timestamp: new Date()
+    timestamp: new Date().toISOString(),
+    services: {
+      database: mongoStatus,
+      graphEngine: graphStatus
+    },
+    environment: config.nodeEnv
   });
 });
 
-// 7. Route 404 fallback
+// 10. Route 404 fallback
 app.all('*', (req, res, next) => {
   next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
 });
 
-// 8. Global Centralized Error Handling Middleware
+// 11. Global Centralized Error Handling Middleware
 app.use(errorMiddleware);
 
 module.exports = app;
