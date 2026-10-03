@@ -153,10 +153,22 @@ const getSkillGaps = async (userId, careerId) => {
   const topicProgressRecords = await getTopicProgress(userId);
   const topicCompletionMap = {};
   topicProgressRecords.forEach(tpr => {
-    topicCompletionMap[tpr.skillId] = (topicCompletionMap[tpr.skillId] || 0) + 1;
+    if (tpr.skillId) {
+      const sId = tpr.skillId.toString();
+      topicCompletionMap[sId] = (topicCompletionMap[sId] || 0) + 1;
+    }
   });
 
-  const scoringResult = calculateReadiness(requirements, userSkillMap, topicCompletionMap);
+  const Topic = require('../models/Topic');
+  const topicCounts = await Topic.aggregate([
+    { $group: { _id: '$skillId', count: { $sum: 1 } } }
+  ]);
+  const topicCountMap = {};
+  topicCounts.forEach(tc => {
+    if (tc._id) topicCountMap[tc._id.toString()] = tc.count;
+  });
+
+  const scoringResult = calculateReadiness(requirements, userSkillMap, topicCompletionMap, topicCountMap);
 
   const User = require('../models/User');
   const Role = require('../models/Role');
@@ -915,6 +927,16 @@ const getTopicProgress = async (userId) => {
       );
     }
     records = await runQuery(topicCypher, { userId });
+  }
+
+  if (mongoTopicProgress && mongoTopicProgress.length > 0) {
+    return mongoTopicProgress.map(tc => ({
+      _id: tc._id,
+      userId: tc.userId.toString(),
+      skillId: tc.skillId ? tc.skillId.toString() : '',
+      topicTitle: tc.topicTitle,
+      completed: tc.completed
+    }));
   }
 
   return records.map(r => ({

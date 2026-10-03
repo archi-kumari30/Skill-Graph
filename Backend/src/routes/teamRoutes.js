@@ -9,5 +9,6 @@ router.use(restrictTo('admin', 'manager'));
 
 router.get('/skill-analysis', teamController.getTeamSkillAnalysis);
 router.get('/role-readiness/:roleId', teamController.getTeamRoleReadiness);
+router.post('/simulate', teamController.simulateTraining);
 
 module.exports = router;

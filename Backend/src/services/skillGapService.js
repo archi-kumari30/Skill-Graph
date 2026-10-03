@@ -46,7 +46,16 @@ const calculateGap = async (userId, roleId) => {
     }
   });
 
-  const scoringResult = calculateReadiness(roleSkills, userSkillMap, topicCompletionMap);
+  const Topic = require('../models/Topic');
+  const topicCounts = await Topic.aggregate([
+    { $group: { _id: '$skillId', count: { $sum: 1 } } }
+  ]);
+  const topicCountMap = {};
+  topicCounts.forEach(tc => {
+    if (tc._id) topicCountMap[tc._id.toString()] = tc.count;
+  });
+
+  const scoringResult = calculateReadiness(roleSkills, userSkillMap, topicCompletionMap, topicCountMap);
 
   return {
     user: {

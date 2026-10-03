@@ -18,7 +18,7 @@ const getImportanceWeight = (importance) => {
   }
 };
 
-const calculateReadiness = (requirements, userSkillMap, topicCompletionMap = {}) => {
+const calculateReadiness = (requirements, userSkillMap, topicCompletionMap = {}, topicCountMap = {}) => {
   let totalWeightedMaxScore = 0;
   let totalWeightedUserScore = 0;
   let matchedSkillsCount = 0;
@@ -34,7 +34,9 @@ const calculateReadiness = (requirements, userSkillMap, topicCompletionMap = {})
     
     // Topic completion multiplier (applied if topic tracking is recorded for this skill)
     const skillName = skill.name || '';
-    const totalTopics = SKILL_TOTAL_TOPICS[skillName] || 3;
+    const totalTopics = (topicCountMap && topicCountMap[skillIdStr])
+      || SKILL_TOTAL_TOPICS[skillName]
+      || 3;
     const hasTopicTracking = topicCompletionMap && topicCompletionMap[skillIdStr] !== undefined;
     const completedTopicsCount = hasTopicTracking ? topicCompletionMap[skillIdStr] : 0;
     const completionRate = hasTopicTracking && totalTopics > 0

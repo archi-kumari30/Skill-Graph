@@ -48,12 +48,21 @@ const getRecommendations = async (userId, roleId) => {
 
   // 3. Identify skills with a gap
   const UserTopicProgress = require('../models/UserTopicProgress');
+  const Topic = require('../models/Topic');
   const completedProgress = await UserTopicProgress.find({ userId });
   const topicCompletionMap = {};
   completedProgress.forEach(tp => {
     if (tp.skillId) {
       topicCompletionMap[tp.skillId.toString()] = (topicCompletionMap[tp.skillId.toString()] || 0) + 1;
     }
+  });
+
+  const topicCounts = await Topic.aggregate([
+    { $group: { _id: '$skillId', count: { $sum: 1 } } }
+  ]);
+  const topicCountMap = {};
+  topicCounts.forEach(tc => {
+    if (tc._id) topicCountMap[tc._id.toString()] = tc.count;
   });
 
   const SKILL_TOTAL_TOPICS = {
@@ -75,9 +84,12 @@ const getRecommendations = async (userId, roleId) => {
     const skillIdStr = skill._id.toString();
     const currentProf = userSkillMap[skillIdStr] || 0;
     
-    const totalTopics = SKILL_TOTAL_TOPICS[skill.name] || 3;
-    const completedTopicsCount = topicCompletionMap[skillIdStr] || 0;
-    const completionRate = totalTopics > 0 ? Math.min(1.0, completedTopicsCount / totalTopics) : 1.0;
+    const totalTopics = topicCountMap[skillIdStr] || SKILL_TOTAL_TOPICS[skill.name] || 3;
+    const hasTopicTracking = topicCompletionMap && topicCompletionMap[skillIdStr] !== undefined;
+    const completedTopicsCount = hasTopicTracking ? topicCompletionMap[skillIdStr] : 0;
+    const completionRate = hasTopicTracking && totalTopics > 0
+      ? Math.min(1.0, completedTopicsCount / totalTopics)
+      : 1.0;
     
     const effectiveProf = currentProf * completionRate;
     const reqProf = rs.requiredProficiency;
@@ -187,9 +199,6 @@ const getRecommendations = async (userId, roleId) => {
       score += 15; // Boost if this unlocks other gap skills
     }
 
-    // Bind score between 0 and 100
-    const priority = Math.max(0, Math.min(100, score));
-
     // Construct human-readable reason
     let reason = '';
     if (!allPrereqsSatisfied) {
@@ -211,6 +220,26 @@ const getRecommendations = async (userId, roleId) => {
 
     // Fetch learning resources for this skill
     const resources = await LearningResource.find({ skillId: gs.skill._id });
+    const mappedResources = resources.map(r => {
+      const hours = r.estimatedHours || 0;
+      const isQuickWin = hours > 0 && hours <= 10 && r.difficulty === 'beginner';
+      return {
+        id: r._id,
+        title: r.title,
+        url: r.url,
+        difficulty: r.difficulty,
+        estimatedHours: hours,
+        durationHours: hours,
+        isQuickWin
+      };
+    });
+
+    const hasQuickWin = mappedResources.some(r => r.isQuickWin);
+    if (hasQuickWin && allPrereqsSatisfied) {
+      score += 5; // Quick-win boost
+    }
+
+    const priority = Math.max(0, Math.min(100, score));
 
     recommendations.push({
       skill: {
@@ -224,13 +253,7 @@ const getRecommendations = async (userId, roleId) => {
       targetProficiency: gs.requiredProficiency,
       prerequisiteSkills: skillPrereqs.map(p => ({ id: p._id, name: p.name })),
       unsatisfiedPrerequisites: unsatisfiedPrereqs.map(p => ({ id: p.id, name: p.name })),
-      learningResources: resources.map(r => ({
-        id: r._id,
-        title: r.title,
-        url: r.url,
-        difficulty: r.difficulty,
-        estimatedHours: r.estimatedHours
-      }))
+      learningResources: mappedResources
     });
   }
 
@@ -240,6 +263,32 @@ const getRecommendations = async (userId, roleId) => {
   return recommendations;
 };
 
+const getQuickWins = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new NotFoundError('User not found');
+
+  const resources = await LearningResource.find({
+    difficulty: 'beginner',
+    estimatedHours: { $gt: 0, $lte: 10 }
+  }).populate('skillId', 'name category').sort({ estimatedHours: 1 });
+
+  return resources.map(r => ({
+    id: r._id,
+    title: r.title,
+    url: r.url,
+    difficulty: r.difficulty,
+    estimatedHours: r.estimatedHours,
+    durationHours: r.estimatedHours,
+    skill: r.skillId ? {
+      id: r.skillId._id,
+      name: r.skillId.name,
+      category: r.skillId.category
+    } : null,
+    isQuickWin: true
+  }));
+};
+
 module.exports = {
-  getRecommendations
+  getRecommendations,
+  getQuickWins
 };

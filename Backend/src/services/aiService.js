@@ -1,26 +1,31 @@
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
 const LearningProgress = require('../models/LearningProgress');
+const ChatMessage = require('../models/ChatMessage');
 const jobService = require('./jobService');
 const skillGapService = require('./skillGapService');
 const recommendationService = require('./recommendationService');
-const { BadRequestError } = require('../utils/customErrors');
+const { BadRequestError, NotFoundError } = require('../utils/customErrors');
 const https = require('https');
 
 const callGeminiAPI = (prompt) => {
   return new Promise((resolve, reject) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-      console.log("Gemini client configured");
+    if (process.env.NODE_ENV === 'test') {
+      return reject(new Error('Testing mode: live Gemini calls bypassed for test suite speed'));
     }
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE' || apiKey.startsWith('YOUR_')) {
+      return reject(new Error('GEMINI_API_KEY is not configured'));
+    }
+
+    const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const postData = JSON.stringify({
       contents: [
         {
-          parts: [
-            { text: prompt }
-          ]
+          parts: [{ text: prompt }]
         }
       ],
       generationConfig: {
@@ -37,34 +42,32 @@ const callGeminiAPI = (prompt) => {
       }
     };
 
-    console.log("Gemini request sent");
     const req = https.request(url, options, (res) => {
       let data = '';
       res.on('data', (chunk) => {
         data += chunk;
       });
       res.on('end', () => {
-        console.log(`Gemini response received. HTTP status: ${res.statusCode}`);
         try {
           const parsed = JSON.parse(data);
-          if (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content && parsed.candidates[0].content.parts[0]) {
+          if (parsed.candidates && parsed.candidates[0]?.content?.parts[0]?.text) {
             resolve(parsed.candidates[0].content.parts[0].text);
           } else {
-            const errMsg = parsed.error?.message || 'Invalid response format from Gemini API';
-            const errType = parsed.error?.status || 'API_ERROR';
-            console.error(`Gemini API Error. Status/Type: ${errType}, Message: ${errMsg}`);
+            const errMsg = parsed.error?.message || 'Invalid response from Gemini API';
             reject(new Error(errMsg));
           }
         } catch (e) {
-          console.error(`Failed to parse Gemini response: ${e.message}`);
           reject(e);
         }
       });
     });
 
     req.on('error', (e) => {
-      console.error(`Gemini request network error: ${e.message}`);
       reject(e);
+    });
+
+    req.setTimeout(8000, () => {
+      req.destroy(new Error('Gemini API request timed out'));
     });
 
     req.write(postData);
@@ -72,156 +75,215 @@ const callGeminiAPI = (prompt) => {
   });
 };
 
-const getCareerGuidance = async (userId, question, history = []) => {
-  console.log("AI request started");
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE' || apiKey.startsWith('YOUR_')) {
-    throw new BadRequestError('AI Career Assistant is not configured. Please set a valid GEMINI_API_KEY in the backend environment.');
+const generateFallbackGuidance = (user, userSkills, targetRoleGap, recommendations, question) => {
+  const targetRoleName = user.targetRoleId ? user.targetRoleId.name : 'your target career';
+  const skillsSummary = userSkills.length > 0
+    ? userSkills.map(s => `${s.skillId?.name || 'Skill'} (Level ${s.proficiency}/5)`).join(', ')
+    : 'No skills logged yet';
+
+  let advice = `### SkillGraph Career Advisory (Guided Advisor Mode)\n\n`;
+  advice += `Hello **${user.name}**! Here is an analysis grounded in your SkillGraph profile:\n\n`;
+  advice += `- **Target Role**: ${targetRoleName}\n`;
+  advice += `- **Current Skills Inventory**: ${skillsSummary}\n\n`;
+
+  if (targetRoleGap && targetRoleGap.skills && targetRoleGap.skills.length > 0) {
+    const missing = targetRoleGap.skills.filter(s => s.status === 'missing');
+    const improve = targetRoleGap.skills.filter(s => s.status === 'needs_improvement');
+    advice += `#### Key Focus Areas for ${targetRoleName}:\n`;
+    if (missing.length > 0) {
+      advice += `- **Missing Core Skills**: ${missing.map(m => m.skill?.name || m.skill).join(', ')}\n`;
+    }
+    if (improve.length > 0) {
+      advice += `- **Proficiency Upgrades Needed**: ${improve.map(i => `${i.skill?.name || i.skill} (Aim for Level ${i.requiredProficiency})`).join(', ')}\n`;
+    }
   }
 
+  if (recommendations && recommendations.length > 0) {
+    advice += `\n#### Recommended Next Steps:\n`;
+    recommendations.slice(0, 3).forEach((r, idx) => {
+      advice += `${idx + 1}. **${r.skill.name}**: ${r.reason}\n`;
+    });
+  }
+
+  advice += `\nRegarding your question: *"${question}"*:\n`;
+  advice += `We suggest focusing on practical milestones for your highest priority skill gaps. Check the Learning module for beginner roadmaps and quick-win resources!`;
+
+  return advice;
+};
+
+const assembleUserContext = async (userId) => {
   const user = await User.findById(userId).populate('targetRoleId');
   if (!user) {
-    throw new Error('User not found');
+    throw new NotFoundError('User not found');
   }
 
-  // 1. Gather all actual data points from database
-  let userSkills;
-  let learningProgress;
-  let jobMatches;
+  const userSkills = await UserSkill.find({ userId }).populate('skillId');
+  const learningProgress = await LearningProgress.find({ userId }).populate({
+    path: 'resourceId',
+    populate: { path: 'skillId' }
+  });
+  const jobMatches = await jobService.getJobMatches(userId);
+
   let targetRoleGap = null;
   let recommendations = [];
-  let completedTopics;
 
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const graphService = require('./graphService');
-    userSkills = await graphService.getUserSkills(userId);
-    learningProgress = await graphService.getLearningProgress(userId);
-    jobMatches = await graphService.getJobMatches(userId);
-    
-    if (user.targetRoleId) {
-      try {
-        targetRoleGap = await graphService.getSkillGaps(userId, user.targetRoleId._id.toString());
-        recommendations = await graphService.getRecommendations(userId, user.targetRoleId._id.toString());
-      } catch (err) {
-        // Ignore if calculation fails
-      }
+  if (user.targetRoleId) {
+    try {
+      targetRoleGap = await skillGapService.calculateGap(userId, user.targetRoleId._id);
+      recommendations = await recommendationService.getRecommendations(userId, user.targetRoleId._id);
+    } catch (err) {
+      // Continue if calculation fails
     }
-    completedTopics = await graphService.getTopicProgress(userId);
-  } else {
-    userSkills = await UserSkill.find({ userId }).populate('skillId');
-    learningProgress = await LearningProgress.find({ userId }).populate({
-      path: 'resourceId',
-      populate: { path: 'skillId' }
-    });
-    jobMatches = await jobService.getJobMatches(userId);
-    
-    if (user.targetRoleId) {
-      try {
-        targetRoleGap = await skillGapService.calculateGap(userId, user.targetRoleId._id);
-        recommendations = await recommendationService.getRecommendations(userId, user.targetRoleId._id);
-      } catch (err) {
-        // Ignore if calculation fails
-      }
-    }
-    const UserTopicProgress = require('../models/UserTopicProgress');
-    completedTopics = await UserTopicProgress.find({ userId });
   }
 
-  // Group completed count by skillId
-  const topicCountMap = {};
-  completedTopics.forEach(tp => {
-    const sIdStr = tp.skillId ? tp.skillId.toString() : '';
-    if (sIdStr) {
-      topicCountMap[sIdStr] = (topicCountMap[sIdStr] || 0) + 1;
-    }
+  const UserTopicProgress = require('../models/UserTopicProgress');
+  const completedTopics = await UserTopicProgress.find({ userId });
+
+  return {
+    user,
+    userSkills,
+    learningProgress,
+    jobMatches,
+    targetRoleGap,
+    recommendations,
+    completedTopics
+  };
+};
+
+const getCareerGuidance = async (userId, question, history = []) => {
+  const context = await assembleUserContext(userId);
+  const { user, userSkills, learningProgress, jobMatches, targetRoleGap, recommendations } = context;
+
+  // Persist user prompt in conversation history
+  await ChatMessage.create({
+    userId,
+    role: 'user',
+    content: question
   });
 
-  const SKILL_TOTAL_TOPICS = {
-    'HTML': 7,
-    'CSS': 7,
-    'JavaScript': 10,
-    'React': 8,
-    'Git': 4,
-    'Node.js': 7,
-    'Express': 6,
-    'MongoDB': 6
-  };
+  const apiKey = process.env.GEMINI_API_KEY;
+  const hasValidKey = apiKey && apiKey !== 'YOUR_GEMINI_API_KEY_HERE' && !apiKey.startsWith('YOUR_');
 
-  const topicsProgressList = userSkills.map(us => {
-    const sIdStr = us.skillId?._id?.toString() || us.skillId?.toString() || '';
-    const completedCount = topicCountMap[sIdStr] || 0;
-    const totalCount = SKILL_TOTAL_TOPICS[us.skillId?.name] || 3;
-    return `- ${us.skillId?.name || 'Skill'}: ${completedCount}/${totalCount} learning topics completed (${Math.round((completedCount / totalCount) * 100)}%)`;
-  }).join('\n');
+  let reply;
+  let isFallback = false;
 
-  // 2. Synthesize prompt context
-  const skillList = userSkills.map(us => `- ${us.skillId?.name || 'Skill'}: Proficiency Level ${us.proficiency}/5, Experience: ${us.yearsOfExperience || 0} years`).join('\n');
-  
-  const progressList = learningProgress.map(lp => `- Course: "${lp.resourceId?.title}", Skill: ${lp.resourceId?.skillId?.name}, Progress: ${lp.progressPercentage}%, Status: ${lp.status}`).join('\n');
+  if (hasValidKey) {
+    try {
+      const skillList = userSkills.map(us => `- ${us.skillId?.name || 'Skill'}: Proficiency ${us.proficiency}/5`).join('\n');
+      const progressList = learningProgress.map(lp => `- ${lp.resourceId?.title}: ${lp.progressPercentage}% (${lp.status})`).join('\n');
+      const recsSummary = recommendations.slice(0, 3).map(r => `- ${r.skill.name}: ${r.reason}`).join('\n');
 
-  const jobsSummary = jobMatches.slice(0, 3).map(jm => `- ${jm.title} at ${jm.company.name} (Match: ${jm.matchScore}%, Gaps: ${jm.missingSkills + jm.skillsToImprove} skills)`).join('\n');
+      const systemPrompt = `You are SkillGraph AI, a career and learning assistant. Answer based on actual student data:
+Student Name: ${user.name}
+Target Role: ${user.targetRoleId ? user.targetRoleId.name : 'Not set'}
+Skills: ${skillList || 'None'}
+Progress: ${progressList || 'None'}
+Recommendations: ${recsSummary || 'None'}
 
-  const gapsSummary = targetRoleGap ? targetRoleGap.skills.map(s => `- ${s.skill.name}: Required: ${s.requiredProficiency}/5, Current: ${s.currentProficiency}/5, Gap status: ${s.status}`).join('\n') : 'No target role selected.';
-
-  const recsSummary = recommendations.slice(0, 4).map(r => `- Focus on: ${r.skill.name} (Priority: ${r.priority}/100) - Reason: ${r.reason}`).join('\n');
-
-  // Format history messages (last 8 messages for context window size)
-  let historyText = '';
-  if (Array.isArray(history) && history.length > 0) {
-    historyText = history.slice(-8).map(msg => `${msg.sender === 'user' ? 'User' : 'AI'}: ${msg.text}`).join('\n');
-  }
-
-  const systemInstruction = `You are SkillGraph AI, a career and learning assistant inside the SkillGraph platform.
-
-Your job is to help students understand their skills, identify gaps, learn technical concepts, plan learning paths, and prepare for careers.
-
-You have access to the student's SkillGraph profile, including their current skills, proficiency levels, target career, required skills, skill gaps, recommendations, and learning progress.
-
-When answering questions about the student's progress or recommendations, use the provided SkillGraph data rather than inventing information.
-
-When explaining technical concepts, teach clearly and progressively. Use simple language when the student appears to be a beginner. For technical questions, provide examples when useful. For career questions, connect recommendations to the student's target role.
-
-Never claim that the student completed a skill or topic unless the provided data confirms it. Never invent student progress.
-
-If information about the student's profile is unavailable, clearly say that you don't have that information.
-
-You are not limited to career questions. You can answer general programming, computer science, learning, interview, and career-development questions.`;
-
-  const systemPrompt = `${systemInstruction}
-
-Student Profile Context:
-- Name: ${user.name}
-- Department: ${user.department || 'Not set'}
-- Target Role: ${user.targetRoleId ? `${user.targetRoleId.name} (${user.targetRoleId.level})` : 'Not set'}
-
-Student Skills Inventory:
-${skillList || 'No skills logged.'}
-
-Detailed Learning Checklist Progress:
-${topicsProgressList || 'No topics completed yet.'}
-
-Learning Course Progress:
-${progressList || 'No active courses.'}
-
-Matched Sample Jobs:
-${jobsSummary || 'No jobs matches compiled.'}
-
-Target Role Gaps details:
-${gapsSummary}
-
-Roadmap Recommendations:
-${recsSummary || 'No recommendation list compiled.'}
-
-Recent Conversation History:
-${historyText || 'No prior messages.'}
-
-Student's Latest Question: "${question}"
+Student Question: "${question}"
 AI:`;
 
-  // 3. Make request
-  return await callGeminiAPI(systemPrompt);
+      reply = await callGeminiAPI(systemPrompt);
+    } catch (err) {
+      console.warn('Gemini API call failed, falling back to grounded rule engine:', err.message);
+      reply = generateFallbackGuidance(user, userSkills, targetRoleGap, recommendations, question);
+      isFallback = true;
+    }
+  } else {
+    reply = generateFallbackGuidance(user, userSkills, targetRoleGap, recommendations, question);
+    isFallback = true;
+  }
+
+  // Persist assistant reply in conversation history
+  await ChatMessage.create({
+    userId,
+    role: 'assistant',
+    content: reply,
+    isFallback
+  });
+
+  return {
+    response: reply,
+    reply,
+    isFallback
+  };
+};
+
+const streamChatResponse = async (userId, question, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const context = await assembleUserContext(userId);
+  const { user, userSkills, learningProgress, jobMatches, targetRoleGap, recommendations } = context;
+
+  // Persist user prompt in history
+  await ChatMessage.create({
+    userId,
+    role: 'user',
+    content: question
+  });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  const hasValidKey = apiKey && apiKey !== 'YOUR_GEMINI_API_KEY_HERE' && !apiKey.startsWith('YOUR_');
+
+  let fullResponse = '';
+  let isFallback = false;
+
+  if (hasValidKey) {
+    try {
+      const skillList = userSkills.map(us => `- ${us.skillId?.name || 'Skill'}: Proficiency ${us.proficiency}/5`).join('\n');
+      const recsSummary = recommendations.slice(0, 3).map(r => `- ${r.skill.name}: ${r.reason}`).join('\n');
+
+      const systemPrompt = `You are SkillGraph AI, a career and learning assistant. Answer based on student data:
+Student: ${user.name}
+Target Role: ${user.targetRoleId ? user.targetRoleId.name : 'Not set'}
+Skills: ${skillList || 'None'}
+Recommendations: ${recsSummary || 'None'}
+
+Question: "${question}"
+AI:`;
+
+      fullResponse = await callGeminiAPI(systemPrompt);
+      res.write(`data: ${JSON.stringify({ chunk: fullResponse, isFallback: false })}\n\n`);
+    } catch (err) {
+      console.warn('Gemini stream call failed, falling back to grounded rule engine:', err.message);
+      fullResponse = generateFallbackGuidance(user, userSkills, targetRoleGap, recommendations, question);
+      isFallback = true;
+      res.write(`data: ${JSON.stringify({ chunk: fullResponse, isFallback: true })}\n\n`);
+    }
+  } else {
+    fullResponse = generateFallbackGuidance(user, userSkills, targetRoleGap, recommendations, question);
+    isFallback = true;
+    res.write(`data: ${JSON.stringify({ chunk: fullResponse, isFallback: true })}\n\n`);
+  }
+
+  // Persist assistant reply
+  await ChatMessage.create({
+    userId,
+    role: 'assistant',
+    content: fullResponse,
+    isFallback
+  });
+
+  res.write('data: [DONE]\n\n');
+  res.end();
+};
+
+const getChatHistory = async (userId) => {
+  return await ChatMessage.find({ userId })
+    .sort({ createdAt: 1 })
+    .select('role content isFallback createdAt');
+};
+
+const clearChatHistory = async (userId) => {
+  return await ChatMessage.deleteMany({ userId });
 };
 
 module.exports = {
-  getCareerGuidance
+  getCareerGuidance,
+  streamChatResponse,
+  getChatHistory,
+  clearChatHistory
 };

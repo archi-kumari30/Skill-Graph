@@ -20,6 +20,8 @@ const restrictToSelfOrAdminManager = (paramName) => {
 
 router.use(protect);
 
+router.get('/quick-wins', recommendationController.getQuickWins);
 router.get('/users/:userId/roles/:roleId', restrictToSelfOrAdminManager('userId'), recommendationController.getRecommendations);
+router.get('/:roleId', recommendationController.getMyRecommendations);
 
 module.exports = router;

@@ -3,11 +3,28 @@ const Skill = require('../models/Skill');
 const UserSkill = require('../models/UserSkill');
 const Role = require('../models/Role');
 const RoleSkill = require('../models/RoleSkill');
-const { NotFoundError } = require('../utils/customErrors');
+const { NotFoundError, BadRequestError } = require('../utils/customErrors');
 const { getImportanceWeight } = require('./skillGapService');
 
-const getTeamSkillAnalysis = async () => {
-  const totalUsers = await User.countDocuments();
+const buildUserFilter = (filters = {}) => {
+  const userQuery = {};
+  if (filters.department) {
+    userQuery.department = filters.department;
+  }
+  if (filters.branch) {
+    userQuery.branch = filters.branch;
+  }
+  if (filters.college) {
+    userQuery.college = filters.college;
+  }
+  return userQuery;
+};
+
+const getTeamSkillAnalysis = async (filters = {}) => {
+  const userQuery = buildUserFilter(filters);
+  const targetUsers = await User.find(userQuery).select('_id');
+  const targetUserIds = targetUsers.map(u => u._id);
+  const totalUsers = targetUserIds.length;
 
   if (totalUsers === 0) {
     return {
@@ -20,8 +37,9 @@ const getTeamSkillAnalysis = async () => {
     };
   }
 
-  // Fetch all user skills
-  const allUserSkills = await UserSkill.find().populate('skillId', 'name category');
+  // Fetch user skills for cohort
+  const allUserSkills = await UserSkill.find({ userId: { $in: targetUserIds } })
+    .populate('skillId', 'name category');
 
   // Group user skills by skillId
   const skillGroups = {};
@@ -67,7 +85,7 @@ const getTeamSkillAnalysis = async () => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  // Missing Skills: Required by roles but not possessed by any user
+  // Missing Skills: Required by roles but not possessed by any user in cohort
   const roleSkills = await RoleSkill.find().populate('skillId', 'name category');
   const requiredSkillIds = new Set();
   const roleSkillDetails = {};
@@ -97,7 +115,7 @@ const getTeamSkillAnalysis = async () => {
     }
   });
 
-  // Team skill gaps (skills with low average proficiency compared to role requirement)
+  // Team skill gaps
   const teamSkillGaps = [];
   for (const rs of roleSkills) {
     if (!rs.skillId) continue;
@@ -119,7 +137,6 @@ const getTeamSkillAnalysis = async () => {
     }
   }
 
-  // Sort and deduplicate gaps by importance and size
   const sortedGaps = teamSkillGaps.sort((a, b) => {
     const scoreA = a.averageGap * getImportanceWeight(a.importance);
     const scoreB = b.averageGap * getImportanceWeight(b.importance);
@@ -136,7 +153,7 @@ const getTeamSkillAnalysis = async () => {
   };
 };
 
-const getTeamRoleReadiness = async (roleId) => {
+const getTeamRoleReadiness = async (roleId, filters = {}) => {
   const role = await Role.findById(roleId);
   if (!role) {
     throw new NotFoundError('Role not found');
@@ -145,14 +162,48 @@ const getTeamRoleReadiness = async (roleId) => {
   const roleSkills = await RoleSkill.find({ roleId }).populate('skillId');
   if (roleSkills.length === 0) {
     return {
-      role: { id: role._id, name: role.name },
+      role: { id: role._id, name: role.name, department: role.department },
       teamReadinessScore: 100,
       skills: []
     };
   }
 
-  // Fetch all user skills
-  const allUserSkills = await UserSkill.find().populate('userId', 'name email');
+  const userQuery = buildUserFilter(filters);
+  const targetUsers = await User.find(userQuery).select('_id');
+  const targetUserIds = targetUsers.map(u => u._id);
+
+  if (targetUserIds.length === 0) {
+    return {
+      role: {
+        id: role._id,
+        name: role.name,
+        department: role.department
+      },
+      teamReadinessScore: 0,
+      summary: {
+        matchedSkills: 0,
+        missingSkills: roleSkills.length,
+        skillsToImprove: 0
+      },
+      skills: roleSkills.map(rs => ({
+        skill: {
+          id: rs.skillId?._id,
+          name: rs.skillId?.name || 'Unknown',
+          category: rs.skillId?.category
+        },
+        requiredProficiency: rs.requiredProficiency,
+        teamMaxProficiency: 0,
+        teamGap: rs.requiredProficiency,
+        importance: rs.importance,
+        status: 'missing',
+        lead: null
+      }))
+    };
+  }
+
+  // Fetch user skills for cohort
+  const allUserSkills = await UserSkill.find({ userId: { $in: targetUserIds } })
+    .populate('userId', 'name email');
 
   // Group user skills by skillId
   const skillToUsersMap = {};
@@ -251,7 +302,78 @@ const getTeamRoleReadiness = async (roleId) => {
   };
 };
 
+const simulateTeamReadiness = async (roleId, hypotheticalChanges = [], filters = {}) => {
+  if (!roleId) {
+    throw new BadRequestError('roleId is required for simulation');
+  }
+
+  if (!Array.isArray(hypotheticalChanges)) {
+    throw new BadRequestError('hypotheticalChanges must be an array of { skillId, proficiency }');
+  }
+
+  // Validate changes
+  hypotheticalChanges.forEach(hc => {
+    if (!hc.skillId || hc.proficiency === undefined || hc.proficiency < 1 || hc.proficiency > 5) {
+      throw new BadRequestError('Each hypothetical change must have a valid skillId and proficiency between 1 and 5');
+    }
+  });
+
+  const baseline = await getTeamRoleReadiness(roleId, filters);
+  const baselineReadiness = baseline.teamReadinessScore;
+
+  // Map hypothetical changes by skillId
+  const changeMap = {};
+  hypotheticalChanges.forEach(hc => {
+    changeMap[hc.skillId.toString()] = hc.proficiency;
+  });
+
+  const roleSkills = await RoleSkill.find({ roleId }).populate('skillId');
+
+  let totalWeightedMaxScore = 0;
+  let simulatedTeamScore = 0;
+  const resolvedGaps = [];
+
+  roleSkills.forEach(rs => {
+    if (!rs.skillId) return;
+    const sId = rs.skillId._id.toString();
+    const weight = getImportanceWeight(rs.importance);
+    const requiredProf = rs.requiredProficiency;
+
+    // Find baseline max proficiency for this skill
+    const baselineSkill = baseline.skills.find(s => s.skill.id.toString() === sId);
+    const currentMax = baselineSkill ? baselineSkill.teamMaxProficiency : 0;
+
+    // Apply hypothetical proficiency if provided
+    const simulatedProf = changeMap[sId] !== undefined
+      ? Math.max(currentMax, changeMap[sId])
+      : currentMax;
+
+    totalWeightedMaxScore += weight * requiredProf;
+    simulatedTeamScore += weight * Math.min(simulatedProf, requiredProf);
+
+    if (currentMax < requiredProf && simulatedProf >= requiredProf) {
+      resolvedGaps.push(rs.skillId.name);
+    }
+  });
+
+  const projectedReadiness = totalWeightedMaxScore > 0
+    ? Math.round((simulatedTeamScore / totalWeightedMaxScore) * 100)
+    : 100;
+
+  const readinessGain = Math.max(0, projectedReadiness - baselineReadiness);
+
+  return {
+    role: baseline.role,
+    baselineReadiness,
+    projectedReadiness,
+    readinessGain,
+    resolvedGaps,
+    hypotheticalChanges
+  };
+};
+
 module.exports = {
   getTeamSkillAnalysis,
-  getTeamRoleReadiness
+  getTeamRoleReadiness,
+  simulateTeamReadiness
 };

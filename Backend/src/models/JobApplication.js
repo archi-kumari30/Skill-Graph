@@ -17,8 +17,8 @@ const jobApplicationSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['applied', 'reviewing', 'interviewing', 'rejected', 'offered'],
-        message: 'Status must be applied, reviewing, interviewing, rejected, or offered'
+        values: ['applied', 'screening', 'reviewing', 'interviewing', 'rejected', 'offered', 'withdrawn'],
+        message: 'Status must be applied, screening, reviewing, interviewing, rejected, offered, or withdrawn'
       },
       default: 'applied',
       index: true
