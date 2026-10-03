@@ -10,13 +10,46 @@ const api = axios.create({
   withCredentials: true
 });
 
-// Interceptor to inject the JWT auth token
+const cache = new Map();
+const CACHE_TTL_MS = 30000; // 30 seconds
+
+export const clearApiCache = (pattern) => {
+  if (!pattern) {
+    cache.clear();
+    return;
+  }
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+    }
+  }
+};
+
+// Interceptor to inject the JWT auth token and serve fresh GET cache
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // In-memory GET caching to prevent redundant roundtrips on tab switching
+    const method = config.method?.toLowerCase();
+    if (method === 'get' && !config.skipCache) {
+      const cacheKey = `${config.url}_${JSON.stringify(config.params || {})}`;
+      const cached = cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        config.adapter = () =>
+          Promise.resolve({
+            data: cached.data,
+            status: 200,
+            statusText: 'OK',
+            headers: cached.headers || {},
+            config
+          });
+      }
+    }
+
     return config;
   },
   (error) => {
@@ -38,9 +71,46 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Interceptor to handle global errors and automatic token refresh
+// Interceptor to handle global errors, cache population/invalidation, and automatic token refresh
 api.interceptors.response.use(
   (response) => {
+    const config = response.config;
+    const method = config?.method?.toLowerCase();
+
+    // Cache successful GET responses
+    if (method === 'get' && !config?.skipCache) {
+      const cacheKey = `${config.url}_${JSON.stringify(config.params || {})}`;
+      cache.set(cacheKey, {
+        data: response.data,
+        headers: response.headers,
+        timestamp: Date.now()
+      });
+    }
+
+    // Invalidate related cache keys on mutating requests (POST, PUT, DELETE, PATCH)
+    if (['post', 'put', 'delete', 'patch'].includes(method)) {
+      const url = config?.url || '';
+      if (url.includes('/skills')) {
+        clearApiCache('/skills');
+        clearApiCache('/dashboard');
+        clearApiCache('/skill-gap');
+        clearApiCache('/recommendations');
+      } else if (url.includes('/learning') || url.includes('/progress')) {
+        clearApiCache('/learning');
+        clearApiCache('/dashboard');
+        clearApiCache('/recommendations');
+      } else if (url.includes('/jobs')) {
+        clearApiCache('/jobs');
+      } else if (url.includes('/users')) {
+        clearApiCache('/users');
+        clearApiCache('/dashboard');
+      } else if (url.includes('/team')) {
+        clearApiCache('/team');
+      } else {
+        clearApiCache();
+      }
+    }
+
     // If the response contains standard success/data envelope, return the data part directly
     return response.data;
   },

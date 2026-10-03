@@ -81,6 +81,15 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/ai', aiRoutes);
 
+// Swagger OpenAPI Documentation
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // 9. Comprehensive Health Check endpoint (mounted at /health and /api/health)
 app.get(['/health', '/api/health'], (req, res) => {
   const mongoose = require('mongoose');

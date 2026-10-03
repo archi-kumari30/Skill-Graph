@@ -6,6 +6,7 @@ const Skill = require('../models/Skill');
 const JobApplication = require('../models/JobApplication');
 const graphService = require('./graphService');
 const { NotFoundError, BadRequestError, ConflictError, ForbiddenError } = require('../utils/customErrors');
+const { formatPaginatedResponse } = require('../utils/helpers');
 
 const isValidUrl = (string) => {
   try {
@@ -133,6 +134,24 @@ const getJobs = async (filters = {}) => {
     } else {
       query.salaryMin = { $lte: maxVal };
     }
+  }
+
+  if (filters.page || filters.limit) {
+    const page = Math.max(1, Number(filters.page) || 1);
+    const limit = Math.max(1, Number(filters.limit) || 10);
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      Job.find(query)
+        .populate('companyId')
+        .populate('requirements.skillId')
+        .sort({ postedAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Job.countDocuments(query)
+    ]);
+
+    return formatPaginatedResponse(items, total, page, limit);
   }
 
   const jobs = await Job.find(query)
@@ -284,8 +303,21 @@ const updateApplicationStatus = async (applicationId, user, newStatus) => {
     }
   }
 
+  const oldStatus = application.status;
   application.status = newStatus;
   await application.save();
+
+  if (isAdminOrManager) {
+    const auditService = require('./auditService');
+    await auditService.logAction({
+      actorId: user._id,
+      action: 'JOB_APPLICATION_STATUS_UPDATE',
+      targetEntity: 'JobApplication',
+      targetId: application._id,
+      changes: { oldStatus, newStatus }
+    });
+  }
+
   return application;
 };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Compass, BookOpen, Layers, CheckCircle, Target, HelpCircle, ArrowRight, Zap, Info, X, Award } from 'lucide-react';
+import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
 
@@ -71,8 +72,9 @@ const CareerExplorer = () => {
       const res = await api.put(`/users/${user._id}`, { targetRoleId: roleId });
       updateUserProfile(res.data.user);
       setSuccessMsg('Target career track set successfully!');
+      toast.success('Target career track set successfully!');
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to set target career');
+      toast.error(err.response?.data?.error?.message || 'Failed to set target career');
     } finally {
       setActionLoading(false);
     }

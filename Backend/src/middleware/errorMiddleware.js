@@ -23,11 +23,19 @@ const errorMiddleware = (err, req, res, next) => {
     error = new AppError(message, 409);
   }
 
-  // 3. Mongoose Validation Error
+  // 3. Validation Error (Mongoose or custom declarative validation)
   if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(el => el.message);
-    const message = `Validation failed: ${messages.join('. ')}`;
+    let messages = [];
+    if (Array.isArray(err.errors)) {
+      messages = err.errors.map(el => (typeof el === 'string' ? el : el.message || el.field));
+    } else if (err.errors && typeof err.errors === 'object') {
+      messages = Object.values(err.errors).map(el => el.message || el);
+    }
+    const message = messages.length > 0 ? `Validation failed: ${messages.join('. ')}` : (err.message || 'Validation failed');
     error = new AppError(message, 400);
+    if (err.errors) {
+      error.details = err.errors;
+    }
   }
 
   // 4. JWT JsonWebTokenError
@@ -46,7 +54,8 @@ const errorMiddleware = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     error: {
-      message: responseMessage
+      message: responseMessage,
+      ...(error.details || err.details ? { details: error.details || err.details } : {})
     }
   });
 };

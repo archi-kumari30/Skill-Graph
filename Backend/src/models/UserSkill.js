@@ -76,6 +76,8 @@ const userSkillSchema = new mongoose.Schema(
 
 // Compound index to ensure a user cannot have duplicate skill entries
 userSkillSchema.index({ userId: 1, skillId: 1 }, { unique: true });
+userSkillSchema.index({ skillId: 1, proficiency: -1 });
+userSkillSchema.index({ userId: 1, verificationStatus: 1 });
 
 const UserSkill = mongoose.model('UserSkill', userSkillSchema);
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
+import toast from 'react-hot-toast';
 
 // Pre-defined learning topics catalog with titles, descriptions, links, and prerequisites
 const LEARNING_TOPICS_CATALOG = {
@@ -225,10 +226,11 @@ const Progress = () => {
       // Fetch fresh skills summary to update proficiencies or scores if necessary
       const skillsRes = await api.get(`/users/${user._id}/skills`);
       setUserSkills(skillsRes.data.skills || []);
+      toast.success(newCompletedState ? 'Topic marked as completed!' : 'Topic marked as incomplete.');
     } catch (err) {
       // Rollback on failure
       setCompletedTopics(prev => ({ ...prev, [key]: wasCompleted }));
-      alert(err.message || 'Failed to update topic completion progress in database.');
+      toast.error(err.message || 'Failed to update topic completion progress in database.');
     }
   };
 

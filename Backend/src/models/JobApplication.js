@@ -44,6 +44,8 @@ const jobApplicationSchema = new mongoose.Schema(
 
 // Compound unique index ensuring a user can only apply once per job
 jobApplicationSchema.index({ userId: 1, jobId: 1 }, { unique: true });
+jobApplicationSchema.index({ userId: 1, status: 1 });
+jobApplicationSchema.index({ jobId: 1, status: 1 });
 
 const JobApplication = mongoose.model('JobApplication', jobApplicationSchema);
 

@@ -38,6 +38,7 @@ const roleSkillSchema = new mongoose.Schema(
 
 // Compound index to ensure a role cannot have duplicate skill requirements
 roleSkillSchema.index({ roleId: 1, skillId: 1 }, { unique: true });
+roleSkillSchema.index({ roleId: 1, importance: 1 });
 
 const RoleSkill = mongoose.model('RoleSkill', roleSkillSchema);
 

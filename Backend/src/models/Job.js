@@ -86,4 +86,8 @@ const jobSchema = new mongoose.Schema({
   timestamps: true
 });
 
+jobSchema.index({ companyId: 1, postedAt: -1 });
+jobSchema.index({ salaryMin: 1, salaryMax: 1 });
+jobSchema.index({ experienceLevel: 1, employmentType: 1 });
+
 module.exports = mongoose.model('Job', jobSchema);

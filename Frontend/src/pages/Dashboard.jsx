@@ -22,7 +22,9 @@ import {
   Play
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 import ErrorState from '../components/ErrorState';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -150,8 +152,9 @@ const Dashboard = () => {
       setNewProficiency(existingSkill ? existingSkill.proficiency : 2);
       setNewExperience(existingSkill ? existingSkill.yearsOfExperience : 1);
       setIsModalOpen(true);
+      toast.success('Course completed! Please reassess your proficiency.');
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to complete course');
+      toast.error(err.response?.data?.error?.message || 'Failed to complete course');
     } finally {
       setLoading(false);
       fetchData();
@@ -186,8 +189,9 @@ const Dashboard = () => {
 
       setIsModalOpen(false);
       setSelectedProgress(null);
+      toast.success('Skill proficiency updated successfully!');
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to update skill profile');
+      toast.error(err.response?.data?.error?.message || 'Failed to update skill profile');
     } finally {
       setModalSubmitting(false);
       fetchData();

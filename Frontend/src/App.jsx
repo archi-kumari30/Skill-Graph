@@ -56,6 +56,13 @@ const PublicRoute = ({ children }) => {
 // 3. Manager/Admin Role Guard
 const RoleRoute = ({ children, allowedRoles }) => {
   const { user, isAuthenticated, loading } = useAuth();
+  const hasAccess = allowedRoles.includes(user?.accountRole);
+
+  React.useEffect(() => {
+    if (!loading && isAuthenticated && !hasAccess) {
+      toast.error('Access restricted: requires privileged role');
+    }
+  }, [loading, isAuthenticated, hasAccess]);
 
   if (loading) {
     return (
@@ -69,7 +76,6 @@ const RoleRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  const hasAccess = allowedRoles.includes(user?.accountRole);
   return hasAccess ? children : <Navigate to="/dashboard" replace />;
 };
 

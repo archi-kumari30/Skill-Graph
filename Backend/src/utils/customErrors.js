@@ -39,11 +39,20 @@ class ConflictError extends AppError {
   }
 }
 
+class ValidationError extends BadRequestError {
+  constructor(message = 'Validation failed', errors = []) {
+    super(message);
+    this.name = 'ValidationError';
+    this.errors = errors;
+  }
+}
+
 module.exports = {
   AppError,
   BadRequestError,
   UnauthorizedError,
   ForbiddenError,
   NotFoundError,
-  ConflictError
+  ConflictError,
+  ValidationError
 };

@@ -16,8 +16,10 @@ import {
   BookOpen
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 import ErrorState from '../components/ErrorState';
 import ProgressBar from '../components/ProgressBar';
+import toast from 'react-hot-toast';
 
 const MySkills = () => {
   const { user } = useAuth();
@@ -78,9 +80,10 @@ const MySkills = () => {
       setIsAddOpen(false);
       setSelectedSkill(null);
       setSearchQuery('');
+      toast.success('Skill added to profile!');
       fetchInventory();
     } catch (err) {
-      alert(err.message || 'Skill already linked to profile.');
+      toast.error(err.message || 'Skill already linked to profile.');
     }
   };
 
@@ -95,9 +98,10 @@ const MySkills = () => {
       });
       setIsEditOpen(false);
       setSelectedSkill(null);
+      toast.success('Skill proficiency updated!');
       fetchInventory();
     } catch (err) {
-      alert(err.message || 'Failed to edit proficiency level.');
+      toast.error(err.message || 'Failed to edit proficiency level.');
     }
   };
 
@@ -105,9 +109,10 @@ const MySkills = () => {
     if (!window.confirm('Remove this skill from your profile?')) return;
     try {
       await api.delete(`/users/${user._id}/skills/${skillId}`);
+      toast.success('Skill removed from profile.');
       fetchInventory();
     } catch (err) {
-      alert(err.message || 'Failed to delete relation.');
+      toast.error(err.message || 'Failed to delete relation.');
     }
   };
 
@@ -126,10 +131,11 @@ const MySkills = () => {
       setIsCreateOpen(false);
       setNewSkillName('');
       setNewSkillDesc('');
+      toast.success('Skill created in catalog!');
       fetchInventory();
       setIsAddOpen(true);
     } catch (err) {
-      alert(err.message || 'Failed to create skill catalog entry.');
+      toast.error(err.message || 'Failed to create skill catalog entry.');
     }
   };
 

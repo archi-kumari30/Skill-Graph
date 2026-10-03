@@ -151,6 +151,20 @@ const reviewSkillVerification = async (userSkillId, reviewerId, decision, review
   }
   await userSkill.save();
 
+  const auditService = require('./auditService');
+  await auditService.logAction({
+    actorId: reviewerId,
+    action: 'SKILL_VERIFICATION_REVIEW',
+    targetEntity: 'UserSkill',
+    targetId: userSkill._id,
+    changes: {
+      decision,
+      userId: userSkill.userId,
+      skillId: userSkill.skillId,
+      notes: reviewerNotes
+    }
+  });
+
   return userSkill;
 };
 
