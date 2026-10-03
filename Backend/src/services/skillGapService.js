@@ -57,7 +57,8 @@ const calculateGap = async (userId, roleId) => {
     role: {
       id: role._id,
       name: role.name,
-      department: role.department
+      department: role.department,
+      level: role.level || 'all'
     },
     readinessScore: scoringResult.readinessScore,
     matchedSkills: scoringResult.matchedSkills,

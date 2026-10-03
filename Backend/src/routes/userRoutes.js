@@ -24,6 +24,12 @@ const restrictToSelfOrAdminManager = (paramName) => {
 
 router.use(protect);
 
+router.route('/profile')
+  .get(userController.getProfile)
+  .put(userController.updateProfile);
+
+router.put('/profile/saved-roles', userController.saveTargetRole);
+
 router.route('/')
   .get(restrictTo('admin', 'manager'), userController.getUsers);
 

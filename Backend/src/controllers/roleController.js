@@ -10,7 +10,7 @@ const createRole = catchAsync(async (req, res, next) => {
 });
 
 const getRoles = catchAsync(async (req, res, next) => {
-  const roles = await roleService.getAllRoles();
+  const roles = await roleService.getAllRoles(req.query);
   res.status(200).json({
     success: true,
     data: { roles }

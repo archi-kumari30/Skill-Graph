@@ -1,6 +1,7 @@
 const Skill = require('../models/Skill');
 const SkillRelationship = require('../models/SkillRelationship');
 const graphService = require('./graphService');
+const { wouldCreateCycle } = require('../utils/graphValidation');
 const { NotFoundError, BadRequestError, ConflictError } = require('../utils/customErrors');
 
 const createRelationship = async (data) => {
@@ -27,12 +28,27 @@ const createRelationship = async (data) => {
     throw new ConflictError('Relationship already exists between these skills. Update it or delete it first.');
   }
 
-  return await SkillRelationship.create({
+  // Algorithmic DAG cycle detection for prerequisite relationships
+  if (relationshipType === 'prerequisite') {
+    const { hasCycle, cyclePath } = await wouldCreateCycle(sourceSkillId, targetSkillId);
+    if (hasCycle) {
+      throw new BadRequestError(
+        'Cannot create prerequisite relationship: circular dependency cycle detected.'
+      );
+    }
+  }
+
+  const relationship = await SkillRelationship.create({
     sourceSkillId,
     targetSkillId,
     relationshipType,
     strength: strength !== undefined ? strength : 1.0
   });
+
+  // Non-blocking real-time CognoDB / Neo4j edge synchronization
+  await graphService.upsertRelationshipEdge(relationship);
+
+  return relationship;
 };
 
 const getAllRelationships = async () => {
@@ -72,6 +88,14 @@ const deleteRelationship = async (id) => {
   if (!rel) {
     throw new NotFoundError('Skill relationship not found');
   }
+
+  // Non-blocking real-time CognoDB edge removal
+  await graphService.removeRelationshipEdge(
+    rel.sourceSkillId,
+    rel.targetSkillId,
+    rel.relationshipType
+  );
+
   return rel;
 };
 

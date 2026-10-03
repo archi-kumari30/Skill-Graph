@@ -19,8 +19,13 @@ const roleSchema = new mongoose.Schema(
     },
     level: {
       type: String,
-      default: '',
-      trim: true
+      enum: {
+        values: ['junior', 'mid', 'senior', 'all'],
+        message: 'Level must be junior, mid, senior, or all'
+      },
+      default: 'all',
+      set: (val) => (val ? val.toLowerCase() : 'all'),
+      index: true
     }
   },
   {

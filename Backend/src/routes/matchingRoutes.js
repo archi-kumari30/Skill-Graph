@@ -20,6 +20,7 @@ const restrictToSelfOrAdminManager = (paramName) => {
 
 router.use(protect);
 
+router.get('/', matchingController.getRoleMatches);
 router.get('/users/:userId/roles', restrictToSelfOrAdminManager('userId'), matchingController.getRoleMatches);
 
 module.exports = router;

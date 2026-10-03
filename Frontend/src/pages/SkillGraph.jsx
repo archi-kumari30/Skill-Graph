@@ -347,6 +347,15 @@ const SkillGraph = () => {
         })
       );
 
+      // Check kinetic energy equilibrium: halt loop if velocities have dissipated
+      const totalVelocity = nodes.reduce(
+        (sum, n) => sum + Math.abs(n.vx || 0) + Math.abs(n.vy || 0),
+        0
+      );
+      if (totalVelocity < 0.05 && !draggedNode) {
+        return;
+      }
+
       animationRef.current = requestAnimationFrame(tick);
     };
 

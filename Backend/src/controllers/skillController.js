@@ -42,10 +42,51 @@ const deleteSkill = catchAsync(async (req, res, next) => {
   });
 });
 
+const submitSkillVerification = catchAsync(async (req, res, next) => {
+  const { proofUrl, notes } = req.body;
+  const userSkill = await skillService.submitSkillVerification(
+    req.user._id,
+    req.params.skillId,
+    proofUrl,
+    notes
+  );
+  res.status(200).json({
+    success: true,
+    message: 'Verification proof submitted successfully and is pending review.',
+    data: { userSkill }
+  });
+});
+
+const getPendingVerifications = catchAsync(async (req, res, next) => {
+  const verifications = await skillService.getPendingVerifications();
+  res.status(200).json({
+    success: true,
+    data: { verifications }
+  });
+});
+
+const reviewSkillVerification = catchAsync(async (req, res, next) => {
+  const { decision, notes } = req.body;
+  const userSkill = await skillService.reviewSkillVerification(
+    req.params.id,
+    req.user._id,
+    decision,
+    notes
+  );
+  res.status(200).json({
+    success: true,
+    message: `Skill verification ${decision} successfully.`,
+    data: { userSkill }
+  });
+});
+
 module.exports = {
   createSkill,
   getSkills,
   getSkill,
   updateSkill,
-  deleteSkill
+  deleteSkill,
+  submitSkillVerification,
+  getPendingVerifications,
+  reviewSkillVerification
 };

@@ -32,11 +32,14 @@ const calculateReadiness = (requirements, userSkillMap, topicCompletionMap = {})
     const skillIdStr = skill._id ? skill._id.toString() : skill.toString();
     const currentProficiency = userSkillMap[skillIdStr] || 0;
     
-    // Topic completion multiplier
+    // Topic completion multiplier (applied if topic tracking is recorded for this skill)
     const skillName = skill.name || '';
     const totalTopics = SKILL_TOTAL_TOPICS[skillName] || 3;
-    const completedTopicsCount = topicCompletionMap[skillIdStr] || 0;
-    const completionRate = totalTopics > 0 ? Math.min(1.0, completedTopicsCount / totalTopics) : 1.0;
+    const hasTopicTracking = topicCompletionMap && topicCompletionMap[skillIdStr] !== undefined;
+    const completedTopicsCount = hasTopicTracking ? topicCompletionMap[skillIdStr] : 0;
+    const completionRate = hasTopicTracking && totalTopics > 0
+      ? Math.min(1.0, completedTopicsCount / totalTopics)
+      : 1.0;
     
     const effectiveProficiency = currentProficiency * completionRate;
 

@@ -12,7 +12,17 @@ const createRole = async (roleData) => {
 };
 
 const getAllRoles = async (filter = {}) => {
-  return await Role.find(filter);
+  const query = {};
+  if (filter.department) {
+    query.department = { $regex: new RegExp('^' + filter.department + '$', 'i') };
+  }
+  if (filter.level && filter.level !== 'all') {
+    query.level = filter.level.toLowerCase();
+  }
+  if (filter.search) {
+    query.name = { $regex: new RegExp(filter.search, 'i') };
+  }
+  return await Role.find(query);
 };
 
 const getRoleById = async (id) => {

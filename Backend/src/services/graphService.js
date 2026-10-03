@@ -172,7 +172,8 @@ const getSkillGaps = async (userId, careerId) => {
     role: {
       id: careerId,
       name: roleObj ? roleObj.name : 'Unknown Role',
-      department: roleObj ? roleObj.department : ''
+      department: roleObj ? roleObj.department : '',
+      level: roleObj ? (roleObj.level || 'all') : 'all'
     },
     readinessScore: scoringResult.readinessScore,
     matchedSkills: scoringResult.matchedSkills,

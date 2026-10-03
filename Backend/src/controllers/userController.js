@@ -66,6 +66,33 @@ const deleteUserSkill = catchAsync(async (req, res, next) => {
   });
 });
 
+const getProfile = catchAsync(async (req, res, next) => {
+  const user = await userService.getUserById(req.user._id);
+  res.status(200).json({
+    success: true,
+    data: { user }
+  });
+});
+
+const updateProfile = catchAsync(async (req, res, next) => {
+  const user = await userService.updateUser(req.user._id, req.body);
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully',
+    data: { user }
+  });
+});
+
+const saveTargetRole = catchAsync(async (req, res, next) => {
+  const { roleId, action } = req.body;
+  const user = await userService.saveTargetRole(req.user._id, roleId, action);
+  res.status(200).json({
+    success: true,
+    message: `Target role ${action === 'remove' ? 'removed from' : 'saved to'} profile successfully`,
+    data: { user }
+  });
+});
+
 module.exports = {
   getUsers,
   getUser,
@@ -74,5 +101,8 @@ module.exports = {
   getUserSkills,
   addUserSkill,
   updateUserSkill,
-  deleteUserSkill
+  deleteUserSkill,
+  getProfile,
+  updateProfile,
+  saveTargetRole
 };

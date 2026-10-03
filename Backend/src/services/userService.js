@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
 const Skill = require('../models/Skill');
+const Role = require('../models/Role');
 const graphService = require('./graphService');
 const { NotFoundError, BadRequestError, ConflictError } = require('../utils/customErrors');
 
@@ -183,6 +184,44 @@ const deleteUserSkill = async (userId, skillId) => {
   return result;
 };
 
+const saveTargetRole = async (userId, roleId, action = 'add') => {
+  if (!roleId) {
+    throw new BadRequestError('Role ID is required');
+  }
+
+  const role = await Role.findById(roleId);
+  if (!role) {
+    throw new NotFoundError('Target role not found');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  if (!user.savedRoleIds) {
+    user.savedRoleIds = [];
+  }
+
+  const roleIdStr = roleId.toString();
+  if (action === 'remove') {
+    user.savedRoleIds = user.savedRoleIds.filter(
+      (id) => id.toString() !== roleIdStr
+    );
+  } else {
+    // Add if not already saved
+    const alreadySaved = user.savedRoleIds.some(
+      (id) => id.toString() === roleIdStr
+    );
+    if (!alreadySaved) {
+      user.savedRoleIds.push(roleId);
+    }
+  }
+
+  await user.save();
+  return await User.findById(userId).populate('targetRoleId').populate('savedRoleIds');
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -191,5 +230,6 @@ module.exports = {
   getUserSkills,
   addUserSkill,
   updateUserSkill,
-  deleteUserSkill
+  deleteUserSkill,
+  saveTargetRole
 };

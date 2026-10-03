@@ -20,6 +20,8 @@ const restrictToSelfOrAdminManager = (paramName) => {
 
 router.use(protect);
 
+router.get('/', skillGapController.getGapAnalysis);
+router.get('/:roleId', skillGapController.getGapAnalysis);
 router.get('/users/:userId/roles/:roleId', restrictToSelfOrAdminManager('userId'), skillGapController.getGapAnalysis);
 
 module.exports = router;
