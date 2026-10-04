@@ -65,6 +65,23 @@ const userSchema = new mongoose.Schema(
     yearOfStudy: {
       type: String,
       default: ''
+    },
+    onboardingCompleted: {
+      type: Boolean,
+      default: false
+    },
+    experienceLevel: {
+      type: String,
+      enum: ['beginner', 'intermediate', 'advanced'],
+      default: 'beginner'
+    },
+    weeklyStudyHours: {
+      type: Number,
+      default: 10
+    },
+    primaryFocus: {
+      type: String,
+      default: 'Full Stack Development'
     }
   },
   {

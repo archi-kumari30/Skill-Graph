@@ -1,9 +1,11 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Normalize API URL to ensure baseURL consistently points to /api
+const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').trim().replace(/\/+$/, '');
+const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -99,6 +101,19 @@ api.interceptors.response.use(
         clearApiCache('/learning');
         clearApiCache('/dashboard');
         clearApiCache('/recommendations');
+      } else if (url.includes('/assessments')) {
+        clearApiCache('/assessments');
+        clearApiCache('/skills');
+        clearApiCache('/dashboard');
+        clearApiCache('/skill-gap');
+        clearApiCache('/activity');
+      } else if (url.includes('/projects')) {
+        clearApiCache('/projects');
+        clearApiCache('/dashboard');
+        clearApiCache('/activity');
+      } else if (url.includes('/activity')) {
+        clearApiCache('/activity');
+        clearApiCache('/dashboard');
       } else if (url.includes('/jobs')) {
         clearApiCache('/jobs');
       } else if (url.includes('/users')) {
@@ -152,7 +167,7 @@ api.interceptors.response.use(
       try {
         // Attempt silent token refresh via HTTP-only cookie
         const refreshResponse = await axios.post(
-          `${API_URL}/api/auth/refresh`,
+          `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );

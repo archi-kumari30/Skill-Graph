@@ -25,6 +25,9 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const learningRoutes = require('./routes/learningRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
+const projectRoutes = require('./routes/projectRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 const app = express();
 
@@ -80,6 +83,9 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/assessments', assessmentRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/activity', activityRoutes);
 
 // Swagger OpenAPI Documentation
 const swaggerUi = require('swagger-ui-express');

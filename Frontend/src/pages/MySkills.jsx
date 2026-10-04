@@ -13,20 +13,33 @@ import {
   PlusCircle,
   HelpCircle,
   FolderPlus,
-  BookOpen
+  BookOpen,
+  CheckCircle2,
+  Sparkles,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import LoadingSkeleton from '../components/LoadingSkeleton';
 import ErrorState from '../components/ErrorState';
 import ProgressBar from '../components/ProgressBar';
 import toast from 'react-hot-toast';
+
+const PROFICIENCY_NAMES = {
+  1: 'Novice',
+  2: 'Familiar',
+  3: 'Competent',
+  4: 'Advanced',
+  5: 'Expert'
+};
 
 const MySkills = () => {
   const { user } = useAuth();
   const [userSkills, setUserSkills] = useState([]);
   const [globalSkills, setGlobalSkills] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   // Modals & form fields
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -35,7 +48,7 @@ const MySkills = () => {
 
   const [selectedSkill, setSelectedSkill] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [proficiency, setProficiency] = useState(1);
+  const [proficiency, setProficiency] = useState(2);
   const [yearsOfExperience, setYearsOfExperience] = useState(1);
 
   // Custom new skill creation
@@ -48,13 +61,15 @@ const MySkills = () => {
       setLoading(true);
       setError('');
       
-      // Get user inventory
-      const userRes = await api.get(`/users/${user._id}/skills`);
-      setUserSkills(userRes.data.skills || []);
+      const [userRes, globalRes, projRes] = await Promise.all([
+        api.get(`/users/${user._id}/skills`),
+        api.get('/skills'),
+        api.get('/projects').catch(() => ({ data: [] }))
+      ]);
 
-      // Get global skill catalog
-      const globalRes = await api.get('/skills');
-      setGlobalSkills(globalRes.data.skills || []);
+      setUserSkills(userRes.data?.skills || userRes.data || []);
+      setGlobalSkills(globalRes.data?.skills || globalRes.data || []);
+      setProjects(projRes.data || []);
     } catch (err) {
       setError(err.message || 'Failed to retrieve skill profiles.');
     } finally {
@@ -126,8 +141,7 @@ const MySkills = () => {
         description: newSkillDesc,
         isPersonal: true
       });
-      // Set newly created skill as active selection
-      setSelectedSkill(res.data.skill);
+      setSelectedSkill(res.data?.skill || res.data);
       setIsCreateOpen(false);
       setNewSkillName('');
       setNewSkillDesc('');
@@ -154,55 +168,119 @@ const MySkills = () => {
     gs.name && gs.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Category Color Map helper
-  const getCategoryTheme = (cat) => {
-    const lower = cat.toLowerCase();
-    if (lower.includes('front')) return 'bg-indigo-50 border-indigo-100 text-indigo-700';
-    if (lower.includes('back')) return 'bg-purple-50 border-purple-100 text-purple-700';
-    if (lower.includes('database') || lower.includes('data')) return 'bg-sky-50 border-sky-100 text-sky-750';
-    if (lower.includes('devops') || lower.includes('cloud')) return 'bg-teal-50 border-teal-100 text-teal-700';
-    return 'bg-slate-50 border-slate-200 text-slate-655';
-  };
+  // Categories
+  const categories = ['All', ...new Set(userSkills.map(us => us.skillId?.category).filter(Boolean))];
+
+  const displayedUserSkills = selectedCategory === 'All'
+    ? userSkills
+    : userSkills.filter(us => us.skillId?.category === selectedCategory);
+
+  // Map project count per skill
+  const skillProjectCountMap = {};
+  projects.forEach(p => {
+    (p.skillsUsed || []).forEach(s => {
+      const sId = (s._id || s).toString();
+      skillProjectCountMap[sId] = (skillProjectCountMap[sId] || 0) + 1;
+    });
+  });
+
+  const verifiedSkillsCount = userSkills.filter(us => us.verified || us.verificationStatus === 'verified').length;
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-8 font-sans animate-in fade-in duration-200">
       
-      {/* 1. Header with Add Trigger button */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-200/50 rounded-2xl p-5 shadow-sm bg-grid-pattern">
-        <div className="space-y-1">
-          <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">Your Skill Universe</h2>
-          <p className="text-xs text-slate-450 font-semibold">Visual list of your current professional competencies and rating values.</p>
+      {/* 1. Header with Stats & Add Trigger */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold uppercase tracking-wider">
+            <Award className="w-3.5 h-3.5" /> Verified Inventory
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
+            My Skills & Competencies
+          </h1>
+          <p className="text-sm text-zinc-600">
+            Maintain your skill inventory, verify self-reported proficiencies through targeted assessments, and connect code evidence to elevate your Career Readiness Score.
+          </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+
+        <div className="flex items-center space-x-3 shrink-0">
           <Link
-            to="/skill-graph"
-            className="px-4 py-2.5 border border-indigo-150 bg-white hover:bg-slate-50 text-indigo-650 rounded-xl text-xs font-bold transition-all flex items-center cursor-pointer"
+            to="/assessments"
+            className="px-4 py-2.5 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
           >
-            Explore Skills
+            <ShieldCheck className="w-4 h-4 text-indigo-600" /> Verify All
           </Link>
           <button
             onClick={() => {
               setSelectedSkill(null);
               setSearchQuery('');
-              setProficiency(1);
+              setProficiency(2);
               setYearsOfExperience(1);
               setIsAddOpen(true);
             }}
-            className="px-4 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 flex items-center transition-all hover:scale-[1.02] cursor-pointer"
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs shadow-indigo-200 flex items-center gap-1.5 transition-all"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Skill
+            <Plus className="w-4 h-4" /> Add Skill
           </button>
         </div>
       </div>
 
-      {/* 2. Visual Skill Card Nodes Grid */}
-      {userSkills.length === 0 ? (
-        <div className="bg-white border border-slate-200/50 rounded-2xl p-12 text-center max-w-md mx-auto space-y-4">
-          <Award className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="font-extrabold text-slate-800">Your Universe is Empty</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            You haven't logged any skills yet. Link competencies from our catalog to get started.
+      {/* 2. Metrics Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-xs space-y-1">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Total Logged</p>
+          <p className="text-2xl font-black text-zinc-900">{userSkills.length}</p>
+          <span className="text-[11px] text-zinc-500 font-semibold">Active proficiencies</span>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-xs space-y-1">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Verified Badges</p>
+          <p className="text-2xl font-black text-emerald-600">{verifiedSkillsCount}</p>
+          <span className="text-[11px] text-emerald-700 font-semibold">
+            {userSkills.length > 0 ? Math.round((verifiedSkillsCount / userSkills.length) * 100) : 0}% verified
+          </span>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-xs space-y-1">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Mastered (4-5)</p>
+          <p className="text-2xl font-black text-indigo-600">
+            {userSkills.filter(s => s.proficiency >= 4).length}
+          </p>
+          <span className="text-[11px] text-zinc-500 font-semibold">Advanced & Expert</span>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-xs space-y-1">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Growing (1-3)</p>
+          <p className="text-2xl font-black text-amber-600">
+            {userSkills.filter(s => s.proficiency < 4).length}
+          </p>
+          <span className="text-[11px] text-zinc-500 font-semibold">In active development</span>
+        </div>
+      </div>
+
+      {/* Category Tabs */}
+      {categories.length > 1 && (
+        <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
+                selectedCategory === cat
+                  ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
+                  : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 3. Skills Cards Grid */}
+      {displayedUserSkills.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 text-center border border-zinc-200/90 shadow-xs space-y-4 max-w-md mx-auto">
+          <Award className="w-12 h-12 text-zinc-300 mx-auto" />
+          <h3 className="font-extrabold text-base text-zinc-900">No skills matching this view</h3>
+          <p className="text-xs text-zinc-500">
+            Add skills from our comprehensive catalog to start building your career profile.
           </p>
           <button
             onClick={() => {
@@ -210,71 +288,108 @@ const MySkills = () => {
               setSearchQuery('');
               setIsAddOpen(true);
             }}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors"
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
           >
-            Link First Skill
+            Add Your First Skill
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {userSkills.map((us) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {displayedUserSkills.map((us) => {
             if (!us.skillId) return null;
             const skillId = us.skillId?._id || us.skillId;
-            const categoryTheme = getCategoryTheme(us.skillId?.category || 'General');
+            const isVerified = us.verified || us.verificationStatus === 'verified';
+            const projectCount = skillProjectCountMap[skillId.toString()] || 0;
+
             return (
               <div
                 key={us._id}
-                className="bg-white border border-slate-250/30 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all hover:scale-[1.01] flex flex-col justify-between space-y-4"
+                className={`bg-white rounded-2xl border transition-all flex flex-col justify-between p-6 space-y-5 ${
+                  isVerified
+                    ? 'border-emerald-200/80 shadow-xs'
+                    : 'border-zinc-200/90 hover:border-zinc-300 hover:shadow-xs'
+                }`}
               >
-                {/* Badge Category & Actions */}
-                <div className="flex justify-between items-start">
-                  <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${categoryTheme}`}>
-                    {us.skillId?.category || 'General'}
-                  </span>
-                  
-                  <div className="flex items-center space-x-1.5">
-                    <button
-                      onClick={() => {
-                        setSelectedSkill(us);
-                        setProficiency(us.proficiency);
-                        setYearsOfExperience(us.yearsOfExperience);
-                        setIsEditOpen(true);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-650 transition-colors"
-                      title="Adjust Level"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRelation(skillId)}
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                      title="Remove Relation"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                {/* Header: Category & Actions */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-600 uppercase tracking-wider">
+                      {us.skillId?.category || 'Skill'}
+                    </span>
+                    
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => {
+                          setSelectedSkill(us);
+                          setProficiency(us.proficiency);
+                          setYearsOfExperience(us.yearsOfExperience);
+                          setIsEditOpen(true);
+                        }}
+                        className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+                        title="Edit Level"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRelation(skillId)}
+                        className="p-1 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        title="Remove Skill"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Name */}
-                <div className="space-y-1">
-                  <h4 className="font-extrabold text-slate-800 tracking-tight text-sm">
-                    {us.skillId?.name}
-                  </h4>
-                  {us.skillId?.description && (
-                    <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
-                      {us.skillId?.description}
+                  {/* Skill Name & Description */}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-base text-zinc-900 leading-snug">
+                        {us.skillId?.name}
+                      </h3>
+                      {isVerified && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" title="Officially Verified Skill" />
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-500 line-clamp-2 mt-1">
+                      {us.skillId?.description || 'Core technology competency.'}
                     </p>
-                  )}
+                  </div>
                 </div>
 
-                {/* Rating indicators & Experience */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-1 text-slate-450 font-bold">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{us.yearsOfExperience} yrs</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
+                {/* Rating Bar & Badges */}
+                <div className="space-y-3 pt-3 border-t border-zinc-100">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-zinc-700">Level {us.proficiency}/5</span>
+                      <span className="text-indigo-600">{PROFICIENCY_NAMES[us.proficiency]}</span>
+                    </div>
                     <ProgressBar value={us.proficiency} max={5} />
+                  </div>
+
+                  {/* Verification Pill & Evidence Row */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-semibold">
+                    {isVerified ? (
+                      <span className="text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
+                      </span>
+                    ) : (
+                      <Link
+                        to="/assessments"
+                        className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3 text-indigo-600" /> Verify via Quiz &rarr;
+                      </Link>
+                    )}
+
+                    {projectCount > 0 ? (
+                      <span className="text-zinc-500">
+                        📁 {projectCount} project{projectCount > 1 ? 's' : ''}
+                      </span>
+                    ) : (
+                      <Link to="/projects" className="text-zinc-400 hover:text-indigo-600">
+                        + Link Project
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -283,35 +398,34 @@ const MySkills = () => {
         </div>
       )}
 
-      {/* MODAL 1: ADD RELATIONSHIP */}
+      {/* MODAL 1: ADD SKILL */}
       {isAddOpen && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5 border border-slate-200/50 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-800 text-base">Link Skill to Profile</h3>
-              <button onClick={() => setIsAddOpen(false)} className="text-slate-450 hover:text-slate-700">
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-zinc-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h3 className="font-extrabold text-zinc-900 text-base">Add Skill to Profile</h3>
+              <button onClick={() => setIsAddOpen(false)} className="text-zinc-400 hover:text-zinc-700 p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleAddRelation} className="space-y-4 text-xs font-semibold text-slate-655">
-              {/* Select Skill Catalog Item */}
+            <form onSubmit={handleAddRelation} className="space-y-4 text-xs font-semibold text-zinc-700">
               <div className="space-y-2">
-                <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-450">Search catalog</label>
+                <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Search Catalog</label>
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
                   <input
                     type="text"
                     placeholder="Search database skills..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-all"
+                    className="w-full pl-9 pr-4 py-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                   />
                 </div>
               </div>
 
-              {/* List filtered results to select */}
-              <div className="border border-slate-100 rounded-xl max-h-36 overflow-y-auto p-2 bg-slate-50 space-y-1">
+              {/* Filtered Results */}
+              <div className="border border-zinc-200 rounded-xl max-h-40 overflow-y-auto p-1.5 bg-zinc-50 space-y-1">
                 {filteredGlobalSkills.map((gs) => (
                   <button
                     key={gs._id}
@@ -323,19 +437,19 @@ const MySkills = () => {
                     className={`w-full text-left p-2.5 rounded-lg text-xs transition-colors flex justify-between items-center ${
                       selectedSkill?._id === gs._id
                         ? 'bg-indigo-600 text-white font-bold'
-                        : 'hover:bg-slate-200/60 text-slate-700'
+                        : 'hover:bg-zinc-200/70 text-zinc-800'
                     }`}
                   >
                     <span>{gs.name}</span>
-                    <span className="text-[9px] opacity-80 uppercase font-bold">{gs.category}</span>
+                    <span className="text-[10px] uppercase font-bold opacity-75">{gs.category}</span>
                   </button>
                 ))}
                 {filteredGlobalSkills.length === 0 && (
-                  <p className="text-[10px] text-slate-400 italic p-3 text-center">"{searchQuery}" isn't in the catalog.</p>
+                  <p className="text-[11px] text-zinc-400 italic p-3 text-center">No catalog match found.</p>
                 )}
               </div>
 
-              {/* Option to create new if missing */}
+              {/* Create personal skill shortcut */}
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -344,52 +458,52 @@ const MySkills = () => {
                     setNewSkillName(searchQuery);
                     setIsCreateOpen(true);
                   }}
-                  className="inline-flex items-center text-[10px] text-indigo-650 hover:underline font-bold"
+                  className="inline-flex items-center text-[11px] text-indigo-600 hover:underline font-bold"
                 >
                   <PlusCircle className="w-3.5 h-3.5 mr-1" />
-                  + Add Personal Skill
+                  + Create custom skill entry
                 </button>
               </div>
 
-              {/* Select Proficiency and Experience */}
+              {/* Proficiency selection */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Proficiency (1-5)</label>
+                <div className="space-y-1">
+                  <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Proficiency (1-5)</label>
                   <select
                     value={proficiency}
                     onChange={(e) => setProficiency(Number(e.target.value))}
-                    className="w-full p-2 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                    className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                   >
                     {[1, 2, 3, 4, 5].map(v => (
-                      <option key={v} value={v}>Level {v}</option>
+                      <option key={v} value={v}>Level {v} - {PROFICIENCY_NAMES[v]}</option>
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Experience (years)</label>
+                <div className="space-y-1">
+                  <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Experience (Years)</label>
                   <input
                     type="number"
-                    min="1"
-                    max="45"
+                    min="0"
+                    max="40"
                     value={yearsOfExperience}
                     onChange={(e) => setYearsOfExperience(Number(e.target.value))}
-                    className="w-full p-2 border border-slate-355 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                    className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                   />
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex justify-end space-x-2">
+              <div className="pt-2 border-t border-zinc-100 flex justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 border border-zinc-300 rounded-xl text-zinc-600 hover:bg-zinc-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!selectedSkill}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl font-bold"
                 >
                   Add Skill
                 </button>
@@ -399,57 +513,59 @@ const MySkills = () => {
         </div>
       )}
 
-      {/* MODAL 2: ADJUST PROFICIENCY */}
+      {/* MODAL 2: EDIT PROFICIENCY */}
       {isEditOpen && selectedSkill && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5 border border-slate-200/50 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-800 text-base">Adjust Proficiency Level</h3>
-              <button onClick={() => setIsEditOpen(false)} className="text-slate-450 hover:text-slate-700">
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-zinc-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h3 className="font-extrabold text-zinc-900 text-base">Adjust Proficiency</h3>
+              <button onClick={() => setIsEditOpen(false)} className="text-zinc-400 hover:text-zinc-700 p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleEditRelation} className="space-y-4 text-xs font-semibold text-slate-655">
-              <p className="font-bold text-slate-700">Adjusting settings for: <strong className="text-indigo-650">{selectedSkill.skillId?.name}</strong></p>
-              
+            <form onSubmit={handleEditRelation} className="space-y-4 text-xs font-semibold text-zinc-700">
+              <p className="font-bold text-zinc-800">
+                Updating: <span className="text-indigo-600">{selectedSkill.skillId?.name}</span>
+              </p>
+
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Proficiency (1-5)</label>
+                <div className="space-y-1">
+                  <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Proficiency (1-5)</label>
                   <select
                     value={proficiency}
                     onChange={(e) => setProficiency(Number(e.target.value))}
-                    className="w-full p-2 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                    className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                   >
                     {[1, 2, 3, 4, 5].map(v => (
-                      <option key={v} value={v}>Level {v}</option>
+                      <option key={v} value={v}>Level {v} - {PROFICIENCY_NAMES[v]}</option>
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Experience (years)</label>
+                <div className="space-y-1">
+                  <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Experience (Years)</label>
                   <input
                     type="number"
-                    min="1"
-                    max="45"
+                    min="0"
+                    max="40"
                     value={yearsOfExperience}
                     onChange={(e) => setYearsOfExperience(Number(e.target.value))}
-                    className="w-full p-2 border border-slate-355 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                    className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                   />
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex justify-end space-x-2">
+              <div className="pt-2 border-t border-zinc-100 flex justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsEditOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 border border-zinc-300 rounded-xl text-zinc-600 hover:bg-zinc-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold"
                 >
                   Save Changes
                 </button>
@@ -459,42 +575,42 @@ const MySkills = () => {
         </div>
       )}
 
-      {/* MODAL 3: ADD PERSONAL SKILL ENTRY */}
+      {/* MODAL 3: CREATE CUSTOM SKILL */}
       {isCreateOpen && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5 border border-slate-200/50 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-800 text-base">Add Personal Skill</h3>
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-zinc-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h3 className="font-extrabold text-zinc-900 text-base">Create Custom Skill</h3>
               <button
                 onClick={() => {
                   setIsCreateOpen(false);
                   setIsAddOpen(true);
                 }}
-                className="text-slate-450 hover:text-slate-700"
+                className="text-zinc-400 hover:text-zinc-700 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateGlobalSkill} className="space-y-4 text-xs font-semibold text-slate-655">
-              <div className="space-y-1.5">
-                <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Skill Name</label>
+            <form onSubmit={handleCreateGlobalSkill} className="space-y-4 text-xs font-semibold text-zinc-700">
+              <div className="space-y-1">
+                <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Skill Name *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Next.js, Docker, Ruby"
+                  required
+                  placeholder="e.g. Astro, Redis, GraphQL"
                   value={newSkillName}
                   onChange={(e) => setNewSkillName(e.target.value)}
-                  className="w-full p-2.5 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
-                  required
+                  className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Category</label>
+              <div className="space-y-1">
+                <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Category *</label>
                 <select
                   value={newSkillCategory}
                   onChange={(e) => setNewSkillCategory(e.target.value)}
-                  className="w-full p-2.5 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                  className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                 >
                   <option value="Programming">Programming</option>
                   <option value="Frontend">Frontend</option>
@@ -509,43 +625,43 @@ const MySkills = () => {
                   <option value="Cloud">Cloud</option>
                   <option value="Security">Security</option>
                   <option value="Mobile">Mobile</option>
-                  <option value="General">General</option>
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block uppercase tracking-wider text-[9px] font-bold text-slate-455">Description</label>
+              <div className="space-y-1">
+                <label className="block uppercase tracking-wider text-[10px] font-bold text-zinc-400">Description</label>
                 <textarea
-                  placeholder="Briefly describe what this skill entails..."
+                  rows={3}
+                  placeholder="Explain what this technology entails..."
                   value={newSkillDesc}
                   onChange={(e) => setNewSkillDesc(e.target.value)}
-                  rows="3"
-                  className="w-full p-2.5 border border-slate-350 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white"
+                  className="w-full p-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 bg-white"
                 />
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex justify-end space-x-2">
+              <div className="pt-2 border-t border-zinc-100 flex justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => {
                     setIsCreateOpen(false);
                     setIsAddOpen(true);
                   }}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 border border-zinc-300 rounded-xl text-zinc-600 hover:bg-zinc-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold"
                 >
-                  Create Catalog Item
+                  Create Skill
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -247,6 +247,75 @@ const saveTargetRole = async (userId, roleId, action = 'add') => {
   return await User.findById(userId).populate('targetRoleId').populate('savedRoleIds');
 };
 
+const completeOnboarding = async (userId, onboardingData) => {
+  const { targetRoleId, experienceLevel, weeklyStudyHours, primaryFocus, skills } = onboardingData;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  if (targetRoleId) {
+    const role = await Role.findById(targetRoleId);
+    if (role) {
+      user.targetRoleId = role._id;
+      if (!user.savedRoleIds) user.savedRoleIds = [];
+      const alreadySaved = user.savedRoleIds.some(id => id.toString() === role._id.toString());
+      if (!alreadySaved) {
+        user.savedRoleIds.push(role._id);
+      }
+    }
+  }
+
+  if (experienceLevel) user.experienceLevel = experienceLevel;
+  if (weeklyStudyHours) user.weeklyStudyHours = Number(weeklyStudyHours);
+  if (primaryFocus) user.primaryFocus = primaryFocus;
+  user.onboardingCompleted = true;
+  await user.save();
+
+  // If skills provided: array of { skillId, proficiency }
+  if (skills && Array.isArray(skills)) {
+    for (const s of skills) {
+      const sId = s.skillId || s.id;
+      if (!sId) continue;
+      const skill = await Skill.findById(sId);
+      if (!skill) continue;
+
+      const prof = s.proficiency ? Number(s.proficiency) : 2;
+      const existing = await UserSkill.findOne({ userId, skillId: sId });
+      if (existing) {
+        existing.proficiency = prof;
+        await existing.save();
+      } else {
+        await UserSkill.create({
+          userId,
+          skillId: sId,
+          proficiency: prof,
+          source: 'onboarding'
+        });
+      }
+    }
+  }
+
+  // Log DailyActivity
+  try {
+    const DailyActivity = require('../models/DailyActivity');
+    const today = new Date().toISOString().split('T')[0];
+    await DailyActivity.create({
+      userId,
+      date: today,
+      activityType: 'skill_added',
+      title: 'Completed Career Onboarding',
+      details: 'Configured target role and starting skills',
+      minutesSpent: 20
+    });
+  } catch (err) {
+    console.warn('Could not log onboarding activity:', err.message);
+  }
+
+  return await User.findById(userId).populate('targetRoleId').populate('savedRoleIds');
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -256,5 +325,7 @@ module.exports = {
   addUserSkill,
   updateUserSkill,
   deleteUserSkill,
-  saveTargetRole
+  saveTargetRole,
+  completeOnboarding
 };
+

@@ -9,6 +9,7 @@ const connectDB = require('./config/db');
 const { connectCognoDB } = require('./config/cognodb');
 const config = require('./config/config');
 const { runCatalogSeed } = require('./seed/seedCatalog');
+const { runAssessmentSeed } = require('./seed/seedAssessments');
 
 // Validate configuration
 const validation = config.validateConfig();
@@ -21,9 +22,10 @@ connectDB().then(async () => {
   try {
     console.log('Running safe catalog database seeding on startup...');
     await runCatalogSeed();
-    console.log('Safe catalog database seeding completed successfully.');
+    await runAssessmentSeed();
+    console.log('Safe catalog and assessment database seeding completed successfully.');
   } catch (err) {
-    console.error('Safe catalog seeding failed on startup:', err.message);
+    console.error('Safe seeding failed on startup:', err.message);
   }
 
   try {

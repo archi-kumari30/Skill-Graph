@@ -21,6 +21,11 @@ import TeamAnalysis from './pages/TeamAnalysis';
 import Jobs from './pages/Jobs';
 import CareerMarket from './pages/CareerMarket';
 import CareerExplorer from './pages/CareerExplorer';
+import Onboarding from './pages/Onboarding';
+import Assessments from './pages/Assessments';
+import AssessmentRunner from './pages/AssessmentRunner';
+import Projects from './pages/Projects';
+import Activity from './pages/Activity';
 import LoadingSpinner from './components/LoadingSpinner';
 
 // 1. Private Route Guard
@@ -233,6 +238,54 @@ const App = () => {
               <PrivateRoute>
                 <DashboardLayout>
                   <CareerExplorer />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <PrivateRoute>
+                <Onboarding />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/assessments"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <Assessments />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/assessments/:id"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <AssessmentRunner />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <Projects />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/activity"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <Activity />
                 </DashboardLayout>
               </PrivateRoute>
             }

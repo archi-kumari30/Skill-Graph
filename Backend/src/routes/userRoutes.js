@@ -28,6 +28,8 @@ router.route('/profile')
   .get(userController.getProfile)
   .put(userController.updateProfile);
 
+router.get('/profile/overview', userController.getProfileOverview);
+router.post('/onboarding', userController.completeOnboarding);
 router.put('/profile/saved-roles', userController.saveTargetRole);
 
 router.route('/')
