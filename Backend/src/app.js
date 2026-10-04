@@ -32,13 +32,47 @@ const activityRoutes = require('./routes/activityRoutes');
 const app = express();
 
 // 1. Security HTTP Headers
-app.use(helmet());
-
-// 2. CORS setup (supporting credentials for HTTP-only cookies)
-app.use(cors({
-  origin: config.clientUrl || 'http://localhost:5173',
-  credentials: true
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
+
+// 2. Dynamic CORS setup supporting multiple local development ports (Vite 5173, 5174, 5175, etc.)
+// while strictly maintaining credentials/cookie authentication and production domain validation
+const configuredOrigins = [
+  config.clientUrl,
+  process.env.CLIENT_URL,
+  'https://skill-graph-noym.onrender.com'
+].filter(Boolean);
+
+const localOriginRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests with no origin (curl, mobile apps, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // In development or test, allow any local port (e.g. localhost:5173, 5174, 5175, etc.)
+    if (config.nodeEnv !== 'production' && localOriginRegex.test(origin)) {
+      return callback(null, true);
+    }
+
+    // Match against configured production client URLs
+    if (configuredOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Set-Cookie']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // 3. API Rate Limiting (skipped in test mode for testing convenience)
 const limiter = rateLimit({
