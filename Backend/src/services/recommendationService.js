@@ -15,9 +15,14 @@ const getRecommendations = async (userId, roleId) => {
   const role = await Role.findById(roleId);
   if (!role) throw new NotFoundError('Role not found');
 
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const graphService = require('./graphService');
-    return await graphService.getRecommendations(userId, roleId);
+  const { getDriver } = require('../config/cognodb');
+  if (process.env.USE_GRAPH_DB === 'true' && getDriver && getDriver()) {
+    try {
+      const graphService = require('./graphService');
+      return await graphService.getRecommendations(userId, roleId);
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for recommendations:', err.message);
+    }
   }
 
   // 1. Fetch user skills

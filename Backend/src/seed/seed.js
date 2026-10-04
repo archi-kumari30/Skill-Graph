@@ -92,16 +92,16 @@ const seedDB = async () => {
     // 4. Create 10 Roles
     console.log('Seeding 10 roles...');
     const rolesToCreate = [
-      { name: 'Frontend Developer', department: 'Engineering', level: 'Mid', description: 'Responsible for building client-side web applications' },
-      { name: 'Backend Developer', department: 'Engineering', level: 'Mid', description: 'Responsible for server logic, database management, and API design' },
-      { name: 'Full Stack Developer', department: 'Engineering', level: 'Senior', description: 'Handles end-to-end delivery of frontend and backend applications' },
-      { name: 'DevOps Engineer', department: 'Platform', level: 'Senior', description: 'Manages CI/CD infrastructure, cloud resources, and container orchestrations' },
-      { name: 'Cloud Architect', department: 'Platform', level: 'Lead', description: 'Architects cloud environments and microservice infrastructures' },
-      { name: 'Data Scientist', department: 'Data', level: 'Mid', description: 'Builds analytical data models and resolves business queries' },
-      { name: 'Machine Learning Engineer', department: 'AI', level: 'Senior', description: 'Trains and deploys deep neural networks in production environments' },
-      { name: 'Cybersecurity Analyst', department: 'Security', level: 'Mid', description: 'Protects enterprise services from intrusion targets' },
-      { name: 'Mobile App Developer', department: 'Engineering', level: 'Mid', description: 'Delivers native iOS/Android client apps using React Native' },
-      { name: 'QA Automation Engineer', department: 'Quality Assurance', level: 'Mid', description: 'Builds automated regression testing scripts for APIs and clients' }
+      { name: 'Frontend Developer', department: 'Engineering', level: 'mid', description: 'Responsible for building client-side web applications' },
+      { name: 'Backend Developer', department: 'Engineering', level: 'mid', description: 'Responsible for server logic, database management, and API design' },
+      { name: 'Full Stack Developer', department: 'Engineering', level: 'senior', description: 'Handles end-to-end delivery of frontend and backend applications' },
+      { name: 'DevOps Engineer', department: 'Platform', level: 'senior', description: 'Manages CI/CD infrastructure, cloud resources, and container orchestrations' },
+      { name: 'Cloud Architect', department: 'Platform', level: 'senior', description: 'Architects cloud environments and microservice infrastructures' },
+      { name: 'Data Scientist', department: 'Data', level: 'mid', description: 'Builds analytical data models and resolves business queries' },
+      { name: 'Machine Learning Engineer', department: 'AI', level: 'senior', description: 'Trains and deploys deep neural networks in production environments' },
+      { name: 'Cybersecurity Analyst', department: 'Security', level: 'mid', description: 'Protects enterprise services from intrusion targets' },
+      { name: 'Mobile App Developer', department: 'Engineering', level: 'mid', description: 'Delivers native iOS/Android client apps using React Native' },
+      { name: 'QA Automation Engineer', department: 'Quality Assurance', level: 'mid', description: 'Builds automated regression testing scripts for APIs and clients' }
     ];
     const seededRoles = await Role.create(rolesToCreate);
     console.log(`Seeded ${seededRoles.length} roles.`);

@@ -1,12 +1,13 @@
 const neo4j = require('neo4j-driver');
-
-const uri = process.env.COGNODB_URI;
-const username = process.env.COGNODB_USERNAME;
-const password = process.env.COGNODB_PASSWORD;
+const config = require('./config');
 
 let driver = null;
 
 const connectCognoDB = async () => {
+  const uri = config.cognodbUri;
+  const username = config.cognodbUsername;
+  const password = config.cognodbPassword;
+
   if (!uri || !username || !password) {
     console.log("CognoDB is not fully configured (missing COGNODB_URI, COGNODB_USERNAME, or COGNODB_PASSWORD)");
     return null;

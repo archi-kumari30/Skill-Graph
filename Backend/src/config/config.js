@@ -17,9 +17,9 @@ const config = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
   useGraphDb: process.env.USE_GRAPH_DB === 'true',
-  cognodbUri: process.env.COGNODB_URI || 'bolt://localhost:7687',
-  cognodbUsername: process.env.COGNODB_USERNAME || 'neo4j',
-  cognodbPassword: process.env.COGNODB_PASSWORD || 'password',
+  cognodbUri: process.env.COGNODB_URI || process.env.NEO4J_URI || 'bolt://localhost:7687',
+  cognodbUsername: process.env.COGNODB_USERNAME || process.env.NEO4J_USER || 'neo4j',
+  cognodbPassword: process.env.COGNODB_PASSWORD || process.env.NEO4J_PASSWORD || 'password',
 
   validateConfig() {
     const warnings = [];

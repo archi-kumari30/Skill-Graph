@@ -18,8 +18,13 @@ const calculateGap = async (userId, roleId) => {
     throw new NotFoundError('Role not found');
   }
 
-  if (process.env.USE_GRAPH_DB === 'true') {
-    return await graphService.getSkillGaps(userId, roleId);
+  const { getDriver } = require('../config/cognodb');
+  if (process.env.USE_GRAPH_DB === 'true' && getDriver && getDriver()) {
+    try {
+      return await graphService.getSkillGaps(userId, roleId);
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for skill gaps:', err.message);
+    }
   }
 
   // Fetch role skill requirements

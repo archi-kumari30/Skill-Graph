@@ -1,8 +1,20 @@
+const dns = require('dns');
 const mongoose = require('mongoose');
 const config = require('./config');
 
+// Configure reliable DNS servers for SRV resolution (fixes querySrv ECONNREFUSED on Windows/ISPs)
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (dnsErr) {
+  // Gracefully fallback to system default if setting custom DNS servers is unsupported
+}
+
 const connectDB = async () => {
   try {
+    try {
+      dns.setServers(['8.8.8.8', '1.1.1.1']);
+    } catch (_) {}
+
     const conn = await mongoose.connect(config.mongodbUri);
     if (config.nodeEnv !== 'test') {
       console.log(`MongoDB Connected: ${conn.connection.host}`);

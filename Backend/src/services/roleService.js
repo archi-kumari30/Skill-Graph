@@ -57,9 +57,14 @@ const deleteRole = async (id) => {
 // Role Skill Requirements
 const getRoleSkills = async (roleId) => {
   await getRoleById(roleId);
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const graphService = require('./graphService');
-    return await graphService.getCareerRequirements(roleId);
+  const { getDriver } = require('../config/cognodb');
+  if (process.env.USE_GRAPH_DB === 'true' && getDriver && getDriver()) {
+    try {
+      const graphService = require('./graphService');
+      return await graphService.getCareerRequirements(roleId);
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for role requirements:', err.message);
+    }
   }
   return await RoleSkill.find({ roleId }).populate('skillId');
 };

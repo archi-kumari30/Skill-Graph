@@ -48,28 +48,35 @@ const deleteUser = async (id) => {
 const getUserSkills = async (userId) => {
   await getUserById(userId);
 
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const mongoUserSkills = await UserSkill.find({ userId }).populate('skillId');
-    const graphUserSkills = await graphService.getUserSkills(userId);
+  const { getDriver } = require('../config/cognodb');
+  const isGraphDbConnected = process.env.USE_GRAPH_DB === 'true' && Boolean(getDriver && getDriver());
 
-    if (mongoUserSkills.length !== graphUserSkills.length) {
-      await graphService.runQuery(
-        'MATCH (u:User { id: $userId })-[r:HAS_SKILL]->() DELETE r',
-        { userId }
-      );
-      for (const us of mongoUserSkills) {
-        if (us.skillId) {
-          await graphService.addUserSkill(
-            userId,
-            us.skillId._id.toString(),
-            us.proficiency,
-            us.yearsOfExperience || 0
-          );
+  if (isGraphDbConnected) {
+    try {
+      const mongoUserSkills = await UserSkill.find({ userId }).populate('skillId');
+      const graphUserSkills = await graphService.getUserSkills(userId);
+
+      if (mongoUserSkills.length !== graphUserSkills.length) {
+        await graphService.runQuery(
+          'MATCH (u:User { id: $userId })-[r:HAS_SKILL]->() DELETE r',
+          { userId }
+        );
+        for (const us of mongoUserSkills) {
+          if (us.skillId) {
+            await graphService.addUserSkill(
+              userId,
+              us.skillId._id.toString(),
+              us.proficiency,
+              us.yearsOfExperience || 0
+            );
+          }
         }
+        return await graphService.getUserSkills(userId);
       }
-      return await graphService.getUserSkills(userId);
+      return graphUserSkills;
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for getUserSkills:', err.message);
     }
-    return graphUserSkills;
   }
 
   return await UserSkill.find({ userId }).populate('skillId');
@@ -94,28 +101,37 @@ const addUserSkill = async (userId, skillData) => {
   }
 
   let userSkill;
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const res = await graphService.addUserSkill(userId, skillId, proficiency, yearsOfExperience || 0);
-    userSkill = {
-      _id: `${userId}_${skillId}`,
-      userId,
-      skillId: {
-        _id: skillId,
-        name: skill.name,
-        category: skill.category
-      },
-      proficiency: res.proficiency,
-      yearsOfExperience: res.yearsOfExperience,
-      source: source || 'self'
-    };
-    await UserSkill.create({
-      userId,
-      skillId,
-      proficiency,
-      yearsOfExperience,
-      source: source || 'self'
-    });
-  } else {
+  const { getDriver } = require('../config/cognodb');
+  const isGraphDbConnected = process.env.USE_GRAPH_DB === 'true' && Boolean(getDriver && getDriver());
+
+  if (isGraphDbConnected) {
+    try {
+      const res = await graphService.addUserSkill(userId, skillId, proficiency, yearsOfExperience || 0);
+      userSkill = {
+        _id: `${userId}_${skillId}`,
+        userId,
+        skillId: {
+          _id: skillId,
+          name: skill.name,
+          category: skill.category
+        },
+        proficiency: res.proficiency,
+        yearsOfExperience: res.yearsOfExperience,
+        source: source || 'self'
+      };
+      await UserSkill.create({
+        userId,
+        skillId,
+        proficiency,
+        yearsOfExperience,
+        source: source || 'self'
+      });
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for addUserSkill:', err.message);
+    }
+  }
+
+  if (!userSkill) {
     userSkill = await UserSkill.create({
       userId,
       skillId,
@@ -130,27 +146,34 @@ const addUserSkill = async (userId, skillData) => {
 const updateUserSkill = async (userId, skillId, updateData) => {
   await getUserById(userId);
 
-  let userSkill;
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const res = await graphService.updateUserSkill(userId, skillId, updateData);
-    if (!res) {
-      throw new NotFoundError('Skill not found on this user profile');
-    }
+  const { getDriver } = require('../config/cognodb');
+  const isGraphDbConnected = process.env.USE_GRAPH_DB === 'true' && Boolean(getDriver && getDriver());
 
-    const skill = await Skill.findById(skillId);
-    userSkill = {
-      _id: `${userId}_${skillId}`,
-      userId,
-      skillId: {
-        _id: skillId,
-        name: skill ? skill.name : '',
-        category: skill ? skill.category : ''
-      },
-      proficiency: res.proficiency,
-      yearsOfExperience: res.yearsOfExperience
-    };
-    await UserSkill.findOneAndUpdate({ userId, skillId }, updateData);
-  } else {
+  let userSkill;
+  if (isGraphDbConnected) {
+    try {
+      const res = await graphService.updateUserSkill(userId, skillId, updateData);
+      if (res) {
+        const skill = await Skill.findById(skillId);
+        userSkill = {
+          _id: `${userId}_${skillId}`,
+          userId,
+          skillId: {
+            _id: skillId,
+            name: skill ? skill.name : '',
+            category: skill ? skill.category : ''
+          },
+          proficiency: res.proficiency,
+          yearsOfExperience: res.yearsOfExperience
+        };
+        await UserSkill.findOneAndUpdate({ userId, skillId }, updateData);
+      }
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for updateUserSkill:', err.message);
+    }
+  }
+
+  if (!userSkill) {
     userSkill = await UserSkill.findOneAndUpdate(
       { userId, skillId },
       updateData,
@@ -167,18 +190,20 @@ const updateUserSkill = async (userId, skillId, updateData) => {
 const deleteUserSkill = async (userId, skillId) => {
   await getUserById(userId);
 
-  let result;
-  if (process.env.USE_GRAPH_DB === 'true') {
-    const deleted = await graphService.deleteUserSkill(userId, skillId);
-    if (!deleted) {
-      throw new NotFoundError('Skill not found on this user profile');
+  const { getDriver } = require('../config/cognodb');
+  const isGraphDbConnected = process.env.USE_GRAPH_DB === 'true' && Boolean(getDriver && getDriver());
+
+  if (isGraphDbConnected) {
+    try {
+      await graphService.deleteUserSkill(userId, skillId);
+    } catch (err) {
+      console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for deleteUserSkill:', err.message);
     }
-    result = await UserSkill.findOneAndDelete({ userId, skillId });
-  } else {
-    result = await UserSkill.findOneAndDelete({ userId, skillId });
-    if (!result) {
-      throw new NotFoundError('Skill not found on this user profile');
-    }
+  }
+
+  const result = await UserSkill.findOneAndDelete({ userId, skillId });
+  if (!result) {
+    throw new NotFoundError('Skill not found on this user profile');
   }
 
   return result;
