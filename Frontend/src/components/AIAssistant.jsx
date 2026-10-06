@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import api from '../services/api';
+import api, { API_BASE_URL } from '../services/api';
 import { MessageSquare, X, Send, Sparkles, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 const AIAssistant = () => {
@@ -84,22 +84,135 @@ const AIAssistant = () => {
     setMessages(prev => [...prev, { sender: 'user', text: query }]);
     setLoading(true);
 
+    let accumulatedText = '';
+
     try {
-      const res = await api.post('/ai/career-assistant', { 
-        question: query,
-        history: currentHistory.map(m => ({ sender: m.sender, text: m.text }))
+      const token = localStorage.getItem('skillgraph_token') || localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          question: query,
+          history: currentHistory.map(m => ({ sender: m.sender, text: m.text }))
+        })
       });
-      setMessages(prev => [...prev, { sender: 'ai', text: res.data?.response || '' }]);
-    } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        { 
-          sender: 'ai', 
-          text: "SkillGraph AI couldn't reach the AI service right now. Please try again.", 
-          isError: true, 
-          retryText: query 
+
+      if (!response.ok) {
+        throw new Error(`SSE stream failed with status ${response.status}`);
+      }
+
+      // Append initial placeholder for AI response
+      setMessages(prev => [...prev, { sender: 'ai', text: '', streaming: true }]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let done = false;
+      let buffer = '';
+
+      while (!done) {
+        const { value, done: streamDone } = await reader.read();
+        if (streamDone) {
+          done = true;
+          break;
         }
-      ]);
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const event of events) {
+          const trimmed = event.trim();
+          if (trimmed.startsWith('data:')) {
+            const jsonStr = trimmed.replace(/^data:\s*/, '').trim();
+            if (jsonStr === '[DONE]') {
+              done = true;
+              break;
+            }
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.chunk) {
+                accumulatedText += parsed.chunk;
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const lastIdx = updated.length - 1;
+                  if (lastIdx >= 0 && updated[lastIdx].sender === 'ai') {
+                    updated[lastIdx] = {
+                      ...updated[lastIdx],
+                      text: accumulatedText,
+                      streaming: true
+                    };
+                  }
+                  return updated;
+                });
+              }
+              if (parsed.done) {
+                done = true;
+                break;
+              }
+              if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+            } catch (jsonErr) {
+              // Ignore partial JSON parse errors
+            }
+          }
+        }
+      }
+
+      // Mark streaming as finalized
+      setMessages(prev => {
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx].sender === 'ai') {
+          updated[lastIdx] = {
+            ...updated[lastIdx],
+            text: accumulatedText || 'Here is the guidance for your career trajectory.',
+            streaming: false
+          };
+        }
+        return updated;
+      });
+    } catch (err) {
+      // Fallback to standard endpoint if streaming cannot be established
+      try {
+        const res = await api.post('/ai/career-assistant', { 
+          question: query,
+          history: currentHistory.map(m => ({ sender: m.sender, text: m.text }))
+        });
+        const reply = res.data?.response || res.data?.message || 'Guidance received.';
+        setMessages(prev => {
+          const updated = [...prev];
+          const lastIdx = updated.length - 1;
+          if (lastIdx >= 0 && updated[lastIdx].sender === 'ai' && !updated[lastIdx].text) {
+            updated[lastIdx] = { sender: 'ai', text: reply, streaming: false };
+          } else {
+            updated.push({ sender: 'ai', text: reply, streaming: false });
+          }
+          return updated;
+        });
+      } catch (fallbackErr) {
+        setMessages(prev => {
+          const updated = [...prev];
+          const lastIdx = updated.length - 1;
+          const errorMsg = { 
+            sender: 'ai', 
+            text: "SkillGraph AI couldn't reach the AI service right now. Please try again.", 
+            isError: true, 
+            retryText: query,
+            streaming: false
+          };
+          if (lastIdx >= 0 && updated[lastIdx].sender === 'ai' && !updated[lastIdx].text) {
+            updated[lastIdx] = errorMsg;
+          } else {
+            updated.push(errorMsg);
+          }
+          return updated;
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -170,7 +283,12 @@ const AIAssistant = () => {
                         : 'bg-white text-slate-800 border border-slate-200/50 rounded-tl-none shadow-sm'
                   } whitespace-pre-line`}
                 >
-                  <div>{msg.text}</div>
+                  <div>
+                    {msg.text}
+                    {msg.streaming && (
+                      <span className="inline-block w-1.5 h-3.5 ml-1 bg-indigo-500 animate-pulse align-middle rounded-xs" />
+                    )}
+                  </div>
                   {msg.isError && (
                     <button
                       type="button"
@@ -184,10 +302,10 @@ const AIAssistant = () => {
               </div>
             ))}
 
-            {loading && (
+            {loading && !messages.some(m => m.streaming && m.text) && (
               <div className="flex justify-start">
                 <div className="bg-white border border-slate-200/50 rounded-2xl rounded-tl-none px-4 py-2.5 text-xs font-bold text-slate-450 animate-pulse">
-                  SkillGraph AI is calculating...
+                  SkillGraph AI is thinking...
                 </div>
               </div>
             )}

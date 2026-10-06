@@ -146,13 +146,20 @@ const addUserSkill = async (userId, skillData) => {
 const updateUserSkill = async (userId, skillId, updateData) => {
   await getUserById(userId);
 
+  // Strip privileged verification fields: verified status is strictly earned via assessments or admin review
+  const sanitizedUpdate = { ...updateData };
+  delete sanitizedUpdate.verified;
+  delete sanitizedUpdate.verificationStatus;
+  delete sanitizedUpdate.verifiedAt;
+  delete sanitizedUpdate.verifiedBy;
+
   const { getDriver } = require('../config/cognodb');
   const isGraphDbConnected = process.env.USE_GRAPH_DB === 'true' && Boolean(getDriver && getDriver());
 
   let userSkill;
   if (isGraphDbConnected) {
     try {
-      const res = await graphService.updateUserSkill(userId, skillId, updateData);
+      const res = await graphService.updateUserSkill(userId, skillId, sanitizedUpdate);
       if (res) {
         const skill = await Skill.findById(skillId);
         userSkill = {
@@ -166,7 +173,7 @@ const updateUserSkill = async (userId, skillId, updateData) => {
           proficiency: res.proficiency,
           yearsOfExperience: res.yearsOfExperience
         };
-        await UserSkill.findOneAndUpdate({ userId, skillId }, updateData);
+        await UserSkill.findOneAndUpdate({ userId, skillId }, sanitizedUpdate);
       }
     } catch (err) {
       console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for updateUserSkill:', err.message);
@@ -176,7 +183,7 @@ const updateUserSkill = async (userId, skillId, updateData) => {
   if (!userSkill) {
     userSkill = await UserSkill.findOneAndUpdate(
       { userId, skillId },
-      updateData,
+      sanitizedUpdate,
       { new: true, runValidators: true }
     );
     if (!userSkill) {

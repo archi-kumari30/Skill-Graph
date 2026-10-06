@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AIAssistant from '../components/AIAssistant';
+import NotificationCenter from '../components/NotificationCenter';
+import ErrorBoundary from '../components/ErrorBoundary';
 import api from '../services/api';
 import {
   Network,
@@ -26,6 +28,7 @@ import {
   ArrowRight,
   ShieldAlert,
   Building,
+  GraduationCap,
   HelpCircle,
   Plus
 } from 'lucide-react';
@@ -50,7 +53,7 @@ const DashboardLayout = ({ children }) => {
       try {
         const res = await api.get('/dashboard/command-center');
         if (isMounted && res?.data) {
-          setCommandData(res.data);
+          setCommandData(res.data?.data || res.data);
         }
       } catch (err) {
         // Silently fail if network hiccup
@@ -71,12 +74,12 @@ const DashboardLayout = ({ children }) => {
 
   if (isAdmin) {
     secondaryNavItems = [
-      { name: 'Admin Dashboard', path: '/dashboard' },
+      { name: 'Admin Dashboard', path: '/admin/dashboard' },
       { name: 'Student Management', path: '/admin/students' },
       { name: 'Recruiter Management', path: '/admin/recruiters' },
+      { name: 'Manage Colleges', path: '/admin/colleges' },
       { name: 'Job Postings', path: '/admin/jobs' },
       { name: 'Applicants & ATS', path: '/admin/applicants' },
-      { name: 'Skill Graph', path: '/skill-graph' },
       { name: 'Profile', path: '/profile' }
     ];
 
@@ -84,9 +87,10 @@ const DashboardLayout = ({ children }) => {
       {
         label: 'Administration',
         items: [
-          { name: 'Admin Dashboard', path: '/dashboard', icon: ShieldAlert },
+          { name: 'Admin Dashboard', path: '/admin/dashboard', icon: ShieldAlert },
           { name: 'Student Directory', path: '/admin/students', icon: Users },
           { name: 'Recruiter Partners', path: '/admin/recruiters', icon: Building },
+          { name: 'Manage Colleges', path: '/admin/colleges', icon: GraduationCap },
           { name: 'Profile', path: '/profile', icon: User }
         ]
       },
@@ -94,32 +98,23 @@ const DashboardLayout = ({ children }) => {
         label: 'Recruitment & ATS',
         items: [
           { name: 'Manage Job Listings', path: '/admin/jobs', icon: Briefcase },
-          { name: 'Applicant Tracking (ATS)', path: '/admin/applicants', icon: Users, badge: 'Review' },
-          { name: 'Public Job Market', path: '/jobs', icon: Briefcase }
-        ]
-      },
-      {
-        label: 'System Catalog',
-        items: [
-          { name: 'Skill Graph Topology', path: '/skill-graph', icon: Network },
-          { name: 'Skills Catalog', path: '/skills', icon: Award }
+          { name: 'Applicant Tracking (ATS)', path: '/admin/applicants', icon: Users, badge: 'Review' }
         ]
       }
     ];
   } else if (isRecruiter) {
     secondaryNavItems = [
-      { name: 'Recruiter Dashboard', path: '/dashboard' },
-      { name: 'My Jobs', path: '/admin/jobs' },
+      { name: 'Recruiter Dashboard', path: '/recruiter/dashboard' },
+      { name: 'Manage Jobs', path: '/admin/jobs' },
       { name: 'Applicants (ATS)', path: '/admin/applicants' },
-      { name: 'Job Market', path: '/jobs' },
-      { name: 'Profile', path: '/profile' }
+      { name: 'Company Profile', path: '/profile' }
     ];
 
     navGroups = [
       {
         label: 'Employer Workspace',
         items: [
-          { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { name: 'Dashboard', path: '/recruiter/dashboard', icon: LayoutDashboard },
           { name: 'Company Profile', path: '/profile', icon: User }
         ]
       },
@@ -127,8 +122,7 @@ const DashboardLayout = ({ children }) => {
         label: 'Talent Acquisition',
         items: [
           { name: 'Manage Jobs', path: '/admin/jobs', icon: Briefcase },
-          { name: 'Applicants & ATS', path: '/admin/applicants', icon: Users, badge: 'ATS' },
-          { name: 'Live Job Market', path: '/jobs', icon: Briefcase }
+          { name: 'Applicants & ATS', path: '/admin/applicants', icon: Users, badge: 'ATS' }
         ]
       }
     ];
@@ -143,7 +137,7 @@ const DashboardLayout = ({ children }) => {
       { name: 'Skill Gaps', path: '/skill-gaps' },
       { name: 'Assessments', path: '/assessments' },
       { name: 'Interview Prep', path: '/interview-prep' },
-      { name: 'Project Evidence', path: '/projects' },
+      { name: 'Portfolio & Projects', path: '/projects' },
       { name: 'Study Activity', path: '/activity' },
       { name: 'Job Market', path: '/jobs' },
       { name: 'My Applications', path: '/applications' },
@@ -173,7 +167,7 @@ const DashboardLayout = ({ children }) => {
           { name: 'Skill Gaps', path: '/skill-gaps', icon: Target },
           { name: 'Verified Assessments', path: '/assessments', icon: CheckCircle2, badge: 'Tests' },
           { name: 'Interview Prep', path: '/interview-prep', icon: HelpCircle, badge: 'New' },
-          { name: 'Project Evidence', path: '/projects', icon: FolderGit2 },
+          { name: 'Portfolio & Projects', path: '/projects', icon: FolderGit2 },
           { name: 'Study Activity Log', path: '/activity', icon: CalendarCheck }
         ]
       },
@@ -203,7 +197,7 @@ const DashboardLayout = ({ children }) => {
           
           {/* Logo & Brand */}
           <div className="flex items-center space-x-6">
-            <Link to="/dashboard" className="flex items-center space-x-2.5 text-zinc-900 group">
+            <Link to={isAdmin ? '/admin/dashboard' : isRecruiter ? '/recruiter/dashboard' : '/dashboard'} className="flex items-center space-x-2.5 text-zinc-900 group">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs transition-colors ${
                 isAdmin
                   ? 'bg-slate-900 group-hover:bg-black'
@@ -290,15 +284,8 @@ const DashboardLayout = ({ children }) => {
               </Link>
             )}
 
-            {isRecruiter && (
-              <Link
-                to="/admin/jobs"
-                className="hidden lg:flex items-center space-x-1.5 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs shadow-purple-200"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Post Job</span>
-              </Link>
-            )}
+            {/* Notification Center */}
+            <NotificationCenter />
 
             {/* User Dropdown */}
             <div className="relative">
@@ -367,7 +354,7 @@ const DashboardLayout = ({ children }) => {
                         className="flex items-center px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                       >
                         <FolderGit2 className="w-4 h-4 mr-2.5 text-zinc-400" />
-                        Project Evidence
+                        Portfolio & Projects
                       </Link>
                       <Link
                         to="/activity"
@@ -506,7 +493,9 @@ const DashboardLayout = ({ children }) => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
-        {children}
+        <ErrorBoundary key={location.pathname}>
+          {children}
+        </ErrorBoundary>
       </main>
     </div>
   );

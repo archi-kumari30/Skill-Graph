@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -16,20 +17,31 @@ import {
   RotateCcw,
   BookOpen,
   Award,
-  Play
+  Play,
+  Check,
+  X
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const InterviewPrep = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTech = searchParams.get('tech') || searchParams.get('technology') || 'All';
+  const initialDomain = searchParams.get('domain') || 'All';
+  const initialSearch = searchParams.get('search') || '';
+  const jobIdParam = searchParams.get('jobId') || null;
+
   const [questions, setQuestions] = useState([]);
   const [stats, setStats] = useState({ totalQuestions: 0, masteredCount: 0, masteryPercentage: 0 });
+  const [availableTechs, setAvailableTechs] = useState([]);
+  const [availableDomains, setAvailableDomains] = useState([]);
+  const [targetJobTitle, setTargetJobTitle] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [selectedDomain, setSelectedDomain] = useState('All');
-  const [selectedTech, setSelectedTech] = useState('All');
+  const [selectedDomain, setSelectedDomain] = useState(initialDomain);
+  const [selectedTech, setSelectedTech] = useState(initialTech);
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
 
   // Expand state
   const [expandedMap, setExpandedMap] = useState({});
@@ -39,6 +51,20 @@ const InterviewPrep = () => {
   const [practiceIndex, setPracticeIndex] = useState(0);
   const [practiceShowAnswer, setPracticeShowAnswer] = useState(false);
 
+  // Fetch optional job context if navigated from a job card
+  useEffect(() => {
+    if (jobIdParam) {
+      api.get(`/jobs/${jobIdParam}/match`)
+        .then(res => {
+          const data = res?.data || res;
+          if (data?.job?.title) {
+            setTargetJobTitle(data.job.title);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [jobIdParam]);
+
   const fetchQuestions = async () => {
     try {
       setLoading(true);
@@ -46,13 +72,20 @@ const InterviewPrep = () => {
       if (selectedDomain !== 'All') params.domain = selectedDomain;
       if (selectedTech !== 'All') params.technology = selectedTech;
       if (selectedDifficulty !== 'All') params.difficulty = selectedDifficulty;
-      if (searchTerm) params.search = searchTerm;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
 
       const res = await api.get('/interview-prep', { params });
-      if (res?.data) {
-        setQuestions(res.data.questions || []);
-        setStats(res.data.stats || { totalQuestions: 0, masteredCount: 0, masteryPercentage: 0 });
-      }
+      const payload = res?.data?.data !== undefined ? res.data.data : (res?.data !== undefined ? res.data : res);
+
+      const qList = payload?.questions || payload?.data?.questions || [];
+      const st = payload?.stats || payload?.data?.stats || { totalQuestions: 0, masteredCount: 0, masteryPercentage: 0 };
+      const techs = payload?.availableTechnologies || payload?.data?.availableTechnologies || [];
+      const doms = payload?.availableDomains || payload?.data?.availableDomains || [];
+
+      setQuestions(qList);
+      setStats(st);
+      if (techs.length > 0) setAvailableTechs(techs);
+      if (doms.length > 0) setAvailableDomains(doms);
     } catch (err) {
       toast.error('Failed to load interview questions');
     } finally {
@@ -64,10 +97,13 @@ const InterviewPrep = () => {
     fetchQuestions();
   }, [selectedDomain, selectedTech, selectedDifficulty]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    fetchQuestions();
-  };
+  // Debounced search query fetch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchQuestions();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const toggleExpand = (id) => {
     setExpandedMap(prev => ({
@@ -79,7 +115,9 @@ const InterviewPrep = () => {
   const handleToggleMastered = async (questionId) => {
     try {
       const res = await api.post(`/interview-prep/${questionId}/toggle-mastered`);
-      const isMastered = res.data?.data?.isMastered;
+      const payload = res?.data || res;
+      const isMastered = payload?.isMastered !== undefined ? payload.isMastered : payload?.data?.isMastered;
+
       toast.success(isMastered ? 'Marked as Mastered! 🎉' : 'Removed from Mastered');
 
       // Update state locally
@@ -97,14 +135,38 @@ const InterviewPrep = () => {
     }
   };
 
-  const domainTabs = ['All', 'Frontend', 'Backend', 'Database'];
-  const techFilters = ['All', 'HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Express.js', 'MongoDB', 'SQL'];
+  // Instant in-memory filtering as user types or toggles pills
+  const filteredQuestions = useMemo(() => {
+    return questions.filter(q => {
+      if (selectedDomain !== 'All' && q.domain !== selectedDomain) return false;
+      if (selectedTech !== 'All' && q.technology !== selectedTech) return false;
+      if (selectedDifficulty !== 'All' && q.difficulty !== selectedDifficulty) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const matchQ = (q.question || '').toLowerCase().includes(term);
+        const matchTopic = (q.topic || '').toLowerCase().includes(term);
+        const matchTech = (q.technology || '').toLowerCase().includes(term);
+        const matchAns = (q.answer || '').toLowerCase().includes(term);
+        if (!matchQ && !matchTopic && !matchTech && !matchAns) return false;
+      }
+      return true;
+    });
+  }, [questions, selectedDomain, selectedTech, selectedDifficulty, searchTerm]);
+
+  const defaultTechFilters = ['All', 'HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Express.js', 'MongoDB', 'SQL', 'REST APIs', 'Git', 'Docker', 'TypeScript', 'Testing'];
+  const allTechPills = useMemo(() => {
+    const set = new Set(defaultTechFilters);
+    availableTechs.forEach(t => set.add(t));
+    return Array.from(set);
+  }, [availableTechs]);
+
+  const domainTabs = ['All', 'Frontend', 'Backend', 'Database', 'DevOps & Tools', 'Quality Assurance'];
 
   if (loading && questions.length === 0) {
     return <LoadingSpinner message="Loading technical interview question bank..." />;
   }
 
-  const currentPracticeQuestion = questions[practiceIndex] || null;
+  const currentPracticeQuestion = filteredQuestions[practiceIndex] || filteredQuestions[0] || null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -116,10 +178,10 @@ const InterviewPrep = () => {
             <Sparkles className="w-3.5 h-3.5" /> Technical Interview Readiness
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
-            Interview Question Bank & Simulator
+            {targetJobTitle ? `Interview Prep: ${targetJobTitle}` : 'Interview Question Bank & Simulator'}
           </h1>
           <p className="text-sm text-zinc-600">
-            Master core conceptual and architectural questions asked by top tech employers (Google, Amazon, Meta, Netflix). Practice concise explanations, review key points, and track your mastered concepts.
+            Master core conceptual and architectural questions asked by tech employers. Practice concise explanations, review key points, and track your mastered concepts.
           </p>
         </div>
 
@@ -145,17 +207,17 @@ const InterviewPrep = () => {
             </div>
           </div>
 
-          {questions.length > 0 && (
+          {filteredQuestions.length > 0 && (
             <button
               onClick={() => {
                 setPracticeIndex(0);
                 setPracticeShowAnswer(false);
                 setPracticeModeOpen(true);
               }}
-              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
+              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Launch Practice Mode</span>
+              <span>Launch Practice Mode ({filteredQuestions.length})</span>
             </button>
           )}
         </div>
@@ -170,7 +232,7 @@ const InterviewPrep = () => {
               setSelectedDomain(domain);
               setSelectedTech('All');
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               selectedDomain === domain
                 ? 'bg-zinc-900 text-white shadow-xs'
                 : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
@@ -186,12 +248,12 @@ const InterviewPrep = () => {
         
         {/* Technology Pills */}
         <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar w-full md:w-auto pb-1 md:pb-0">
-          {techFilters.map(tech => (
+          {allTechPills.map(tech => (
             <button
               key={tech}
               onClick={() => setSelectedTech(tech)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap border ${
-                selectedTech === tech
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
+                selectedTech.toLowerCase() === tech.toLowerCase()
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
                   : 'bg-zinc-50 text-zinc-600 border-zinc-200 hover:border-zinc-300'
               }`}
@@ -203,21 +265,29 @@ const InterviewPrep = () => {
 
         {/* Search & Difficulty Filter */}
         <div className="flex items-center space-x-3 w-full md:w-auto shrink-0">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 md:w-64">
+          <div className="relative flex-1 md:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
-              placeholder="Search concepts..."
+              placeholder="Search (e.g. HTML, closures)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full pl-9 pr-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-zinc-800"
             />
-          </form>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           <select
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-700 focus:outline-none"
+            className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-700 focus:outline-none cursor-pointer"
           >
             <option value="All">All Levels</option>
             <option value="Beginner">Beginner</option>
@@ -227,10 +297,52 @@ const InterviewPrep = () => {
         </div>
       </div>
 
+      {/* Active Filter Chips */}
+      {(selectedTech !== 'All' || selectedDomain !== 'All' || selectedDifficulty !== 'All' || searchTerm) && (
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-zinc-400 font-semibold">Active filters:</span>
+          {selectedDomain !== 'All' && (
+            <span className="inline-flex items-center gap-1 bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded-lg font-bold">
+              Domain: {selectedDomain}
+              <button onClick={() => setSelectedDomain('All')} className="hover:text-rose-600"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {selectedTech !== 'All' && (
+            <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg font-bold">
+              Tech: {selectedTech}
+              <button onClick={() => setSelectedTech('All')} className="hover:text-rose-600"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {selectedDifficulty !== 'All' && (
+            <span className="inline-flex items-center gap-1 bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded-lg font-bold">
+              Level: {selectedDifficulty}
+              <button onClick={() => setSelectedDifficulty('All')} className="hover:text-rose-600"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {searchTerm && (
+            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-lg font-bold">
+              Query: "{searchTerm}"
+              <button onClick={() => setSearchTerm('')} className="hover:text-rose-600"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          <button
+            onClick={() => {
+              setSelectedDomain('All');
+              setSelectedTech('All');
+              setSelectedDifficulty('All');
+              setSearchTerm('');
+            }}
+            className="text-indigo-600 font-bold hover:underline ml-1"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
       {/* Question List */}
       <div className="space-y-4">
-        {questions.length > 0 ? (
-          questions.map((q, idx) => {
+        {filteredQuestions.length > 0 ? (
+          filteredQuestions.map((q, idx) => {
             const isExpanded = expandedMap[q._id];
             return (
               <div
@@ -281,7 +393,7 @@ const InterviewPrep = () => {
                   <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
                     <button
                       onClick={() => handleToggleMastered(q._id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                         q.isMastered
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                           : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300'
@@ -294,7 +406,7 @@ const InterviewPrep = () => {
 
                     <button
                       onClick={() => toggleExpand(q._id)}
-                      className="p-1.5 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 transition-colors"
+                      className="p-1.5 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer"
                       title={isExpanded ? 'Collapse' : 'Show full answer'}
                     >
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -302,51 +414,58 @@ const InterviewPrep = () => {
                   </div>
                 </div>
 
-                {/* Expanded Answer Panel */}
+                {/* Expanded Answer Drawer */}
                 {isExpanded && (
-                  <div className="border-t border-zinc-100 bg-[#FAF9F6]/60 p-5 space-y-4 animate-in fade-in duration-150">
+                  <div className="px-5 pb-5 pt-2 border-t border-zinc-100 space-y-4 bg-[#FAF9F6]/60 animate-in fade-in duration-150">
                     
-                    {/* Key points bulleted summary */}
+                    {/* Key Evaluation Points */}
                     {q.keyPoints && q.keyPoints.length > 0 && (
-                      <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-3.5 space-y-1.5">
-                        <p className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-amber-600" /> Key Concepts Interviewers Listen For
-                        </p>
+                      <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3.5 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                          Key Evaluation Takeaways:
+                        </span>
                         <ul className="list-disc list-inside space-y-1 text-xs text-amber-950 font-medium">
-                          {q.keyPoints.map((pt, pIdx) => (
-                            <li key={pIdx}>{pt}</li>
+                          {q.keyPoints.map((point, i) => (
+                            <li key={i}>{point}</li>
                           ))}
                         </ul>
                       </div>
                     )}
 
-                    {/* Detailed Answer text */}
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Detailed Solution</p>
-                      <div className="text-xs text-zinc-700 leading-relaxed whitespace-pre-line space-y-2 font-normal">
-                        {q.answer}
-                      </div>
+                    {/* Detailed Technical Answer */}
+                    <div className="text-xs text-zinc-700 leading-relaxed whitespace-pre-line space-y-2">
+                      <p className="font-semibold text-zinc-800">{q.answer}</p>
                     </div>
 
-                    {/* Code Snippet if present */}
+                    {/* Code Snippet */}
                     {q.codeSnippet && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                          <Code2 className="w-3.5 h-3.5 text-zinc-500" /> Implementation Example
-                        </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                          <Code2 className="w-3.5 h-3.5" /> Implementation Reference:
+                        </div>
                         <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed border border-zinc-800">
                           <code>{q.codeSnippet}</code>
                         </pre>
                       </div>
                     )}
 
+                    {/* Quick Assessment CTA */}
+                    <div className="pt-2 flex items-center justify-between text-xs">
+                      <span className="text-zinc-400">Want to verify this topic?</span>
+                      <Link
+                        to="/assessments"
+                        className="font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                      >
+                        <Award className="w-3.5 h-3.5" /> Take Skill Assessment &rarr;
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
             );
           })
         ) : (
-          <div className="bg-white rounded-2xl p-12 text-center border border-zinc-200 text-zinc-500 space-y-3">
+          <div className="bg-white rounded-2xl p-12 text-center border border-zinc-200/80 space-y-3 text-zinc-500">
             <HelpCircle className="w-10 h-10 mx-auto text-zinc-300" />
             <p className="text-sm font-semibold">No interview questions match your filter criteria.</p>
             <button
@@ -356,7 +475,7 @@ const InterviewPrep = () => {
                 setSelectedDifficulty('All');
                 setSearchTerm('');
               }}
-              className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-bold"
+              className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-bold cursor-pointer"
             >
               Reset Filters
             </button>
@@ -373,13 +492,13 @@ const InterviewPrep = () => {
             <div className="p-5 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
-                  Question {practiceIndex + 1} of {questions.length}
+                  Question {practiceIndex + 1} of {filteredQuestions.length}
                 </span>
                 <span className="text-xs font-bold text-zinc-500">{currentPracticeQuestion.technology}</span>
               </div>
               <button
                 onClick={() => setPracticeModeOpen(false)}
-                className="text-xs font-bold text-zinc-500 hover:text-zinc-800 px-2.5 py-1 rounded-lg border border-zinc-200"
+                className="text-xs font-bold text-zinc-500 hover:text-zinc-800 px-2.5 py-1 rounded-lg border border-zinc-200 cursor-pointer"
               >
                 Close Simulator
               </button>
@@ -404,7 +523,7 @@ const InterviewPrep = () => {
                   </p>
                   <button
                     onClick={() => setPracticeShowAnswer(true)}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
                     Reveal Solution & Code
                   </button>
@@ -443,14 +562,14 @@ const InterviewPrep = () => {
                   setPracticeIndex(prev => prev - 1);
                   setPracticeShowAnswer(false);
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-zinc-200 bg-white hover:bg-zinc-100 disabled:opacity-40 transition-colors cursor-pointer"
               >
                 Previous
               </button>
 
               <button
                 onClick={() => handleToggleMastered(currentPracticeQuestion._id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 cursor-pointer ${
                   currentPracticeQuestion.isMastered
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                     : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
@@ -461,12 +580,12 @@ const InterviewPrep = () => {
               </button>
 
               <button
-                disabled={practiceIndex >= questions.length - 1}
+                disabled={practiceIndex >= filteredQuestions.length - 1}
                 onClick={() => {
                   setPracticeIndex(prev => prev + 1);
                   setPracticeShowAnswer(false);
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-40 transition-colors cursor-pointer"
               >
                 Next Question
               </button>

@@ -339,8 +339,15 @@ const analyzeJobWithPrerequisites = async (job, userSkillMap) => {
   };
 };
 
-const getJobs = async (filters = {}) => {
+const getJobs = async (filters = {}, actorUser) => {
   const query = {};
+
+  // Recruiter Isolation: Recruiters only view their own posted jobs
+  if (actorUser && (actorUser.accountRole === 'recruiter' || actorUser.accountRole === 'manager')) {
+    query.recruiterId = actorUser._id;
+  } else if (filters.recruiterId && actorUser && actorUser.accountRole === 'admin') {
+    query.recruiterId = filters.recruiterId;
+  }
 
   if (filters.search) {
     query.$or = [
@@ -401,6 +408,7 @@ const getJobs = async (filters = {}) => {
       Job.find(query)
         .populate('companyId')
         .populate('requirements.skillId')
+        .populate('recruiterId', 'name email company')
         .sort({ postedAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -413,6 +421,7 @@ const getJobs = async (filters = {}) => {
   const jobs = await Job.find(query)
     .populate('companyId')
     .populate('requirements.skillId')
+    .populate('recruiterId', 'name email company')
     .sort({ postedAt: -1 });
 
   return jobs;
@@ -421,7 +430,8 @@ const getJobs = async (filters = {}) => {
 const getJobById = async (jobId) => {
   const job = await Job.findById(jobId)
     .populate('companyId')
-    .populate('requirements.skillId');
+    .populate('requirements.skillId')
+    .populate('recruiterId', 'name email company');
 
   if (!job) {
     throw new NotFoundError('Job not found');
@@ -448,13 +458,31 @@ const getJobMatches = async (userId) => {
     .populate('companyId')
     .populate('requirements.skillId');
 
+  const userApplications = await JobApplication.find({ userId }).lean();
+  const appMap = {};
+  userApplications.forEach(app => {
+    if (app.jobId) {
+      appMap[app.jobId.toString()] = {
+        hasApplied: true,
+        applicationId: app._id,
+        status: app.status,
+        appliedAt: app.appliedAt || app.createdAt
+      };
+    }
+  });
+
   const matches = [];
 
   for (const job of jobs) {
     const analysis = calculateJobMatch(job, userSkillMap);
+    const appInfo = appMap[job._id.toString()];
 
     matches.push({
       jobId: job._id,
+      hasApplied: !!appInfo,
+      applicationStatus: appInfo ? appInfo.status : null,
+      appliedAt: appInfo ? appInfo.appliedAt : null,
+      applicationId: appInfo ? appInfo.applicationId : null,
       title: job.title,
       company: {
         id: job.companyId?._id,
@@ -493,6 +521,15 @@ const getJobMatches = async (userId) => {
       source: job.source,
       sourceUrl: job.sourceUrl || job.applicationUrl
     });
+
+    if (analysis.matchScore >= 80) {
+      const notificationService = require('./notificationService');
+      notificationService.notifyHighMatchJob({
+        studentId: userId,
+        job,
+        matchScore: analysis.matchScore
+      }).catch(err => console.error('Failed to dispatch high match notification:', err));
+    }
   }
 
   matches.sort((a, b) => b.matchScore - a.matchScore);
@@ -553,7 +590,8 @@ const getJobMatchForUser = async (userId, jobId) => {
     skillGaps: analysis.skillGaps,
     explanation: analysis.explanation,
     hasApplied: !!application,
-    application: application || null
+    application: application || null,
+    applicationStatus: application ? application.status : null
   };
 };
 
@@ -1105,6 +1143,33 @@ const applyForJob = async (userId, jobId, applicationData = {}) => {
     appliedAt: new Date()
   });
 
+  try {
+    const notificationService = require('./notificationService');
+    const compName = job.companyName || (job.companyId ? job.companyId.name : 'the hiring company');
+    
+    // 1. Notification for Student
+    notificationService.createNotification({
+      userId,
+      type: 'application_submitted',
+      title: 'Application Submitted',
+      message: `Application submitted for ${job.title} at ${compName}.`,
+      link: '/applications',
+      metadata: { jobId: job._id, applicationId: application._id }
+    }).catch(e => console.error('Error creating app notification:', e));
+
+    // 2. Notification for Recruiter (if assigned)
+    if (job.recruiterId) {
+      notificationService.createNotification({
+        userId: job.recruiterId,
+        type: 'new_applicant',
+        title: 'New Applicant Received',
+        message: `${fullName || 'A student'} submitted an application for ${job.title}.`,
+        link: '/admin/applicants',
+        metadata: { jobId: job._id, applicationId: application._id }
+      }).catch(e => console.error('Error creating recruiter notification:', e));
+    }
+  } catch (err) {}
+
   return application;
 };
 
@@ -1215,6 +1280,9 @@ const updateApplicationStatus = async (applicationId, user, newStatus) => {
   }
 
   const oldStatus = application.status;
+  if (oldStatus && oldStatus.toLowerCase() === newStatus.toLowerCase()) {
+    return application;
+  }
   application.status = newStatus;
   await application.save();
 
@@ -1227,6 +1295,26 @@ const updateApplicationStatus = async (applicationId, user, newStatus) => {
       targetId: application._id,
       changes: { oldStatus, newStatus }
     });
+  }
+
+  // Trigger student notifications on recruiter/admin status update
+  try {
+    const studentUser = await User.findById(application.userId);
+    const job = await Job.findById(application.jobId);
+    if (studentUser && job) {
+      const notificationService = require('./notificationService');
+      await notificationService.sendCandidateStatusUpdate({
+        studentId: studentUser._id,
+        studentEmail: studentUser.email,
+        studentName: studentUser.name,
+        jobTitle: job.title,
+        companyName: job.companyName || (job.companyId ? job.companyId.name : 'SkillGraph Partner'),
+        status: newStatus,
+        jobId: job._id
+      });
+    }
+  } catch (notifyErr) {
+    console.error('Failed to dispatch status update notification:', notifyErr.message);
   }
 
   return application;

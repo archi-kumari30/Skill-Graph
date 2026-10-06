@@ -359,35 +359,44 @@ const MySkills = () => {
                 {/* Rating Bar & Badges */}
                 <div className="space-y-3 pt-3 border-t border-zinc-100">
                   <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-zinc-700">Level {us.proficiency}/5</span>
-                      <span className="text-indigo-600">{PROFICIENCY_NAMES[us.proficiency]}</span>
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-zinc-700">{PROFICIENCY_NAMES[us.proficiency]} (Level {us.proficiency}/5)</span>
+                      <span className="text-indigo-600 font-extrabold">{Math.round((us.proficiency / 5) * 100)}%</span>
                     </div>
                     <ProgressBar value={us.proficiency} max={5} />
                   </div>
 
                   {/* Verification Pill & Evidence Row */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-semibold">
-                    {isVerified ? (
-                      <span className="text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
-                      </span>
-                    ) : (
+                  <div className="flex flex-col gap-2 pt-1 text-[11px] font-semibold">
+                    <div className="flex items-center justify-between">
+                      {isVerified ? (
+                        <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified via Assessment
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500 bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 rounded-full font-bold">
+                          Unverified
+                        </span>
+                      )}
+
+                      {projectCount > 0 ? (
+                        <span className="text-zinc-500">
+                          📁 {projectCount} project{projectCount > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <Link to="/projects" className="text-zinc-400 hover:text-indigo-600">
+                          + Link Project
+                        </Link>
+                      )}
+                    </div>
+
+                    {!isVerified && (
                       <Link
                         to="/assessments"
-                        className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 transition-colors"
+                        className="w-full text-center py-1.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <Sparkles className="w-3 h-3 text-indigo-600" /> Verify via Quiz &rarr;
-                      </Link>
-                    )}
-
-                    {projectCount > 0 ? (
-                      <span className="text-zinc-500">
-                        📁 {projectCount} project{projectCount > 1 ? 's' : ''}
-                      </span>
-                    ) : (
-                      <Link to="/projects" className="text-zinc-400 hover:text-indigo-600">
-                        + Link Project
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        Take Assessment to Verify
                       </Link>
                     )}
                   </div>

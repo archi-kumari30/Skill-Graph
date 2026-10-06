@@ -48,7 +48,7 @@ const Projects = () => {
       setProjects(projRes?.data || []);
       setAllSkills(skillsRes?.data?.skills || skillsRes?.data || []);
     } catch (err) {
-      toast.error('Failed to load project evidence');
+      toast.error('Failed to load portfolio projects');
     } finally {
       setLoading(false);
     }
@@ -166,21 +166,21 @@ const Projects = () => {
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" /> Tangible Skill Evidence
+            <Sparkles className="w-3.5 h-3.5" /> Tangible Skill Demonstration
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
-            Project Portfolio
+            Portfolio & Projects
           </h1>
           <p className="text-sm text-zinc-600">
-            Link code repositories and live applications directly to your skills. Demonstrating hands-on project evidence provides undeniable proof of competence for employers.
+            Link code repositories and live applications directly to your skills. Demonstrating hands-on project work provides undeniable proof of competence for employers.
           </p>
         </div>
 
         <button
           onClick={() => handleOpenModal()}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-indigo-200 transition-all shrink-0"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-indigo-200 transition-all shrink-0 cursor-pointer"
         >
-          <Plus className="w-4 h-4" /> Add Project Evidence
+          <Plus className="w-4 h-4" /> Add Project
         </button>
       </div>
 
@@ -214,14 +214,14 @@ const Projects = () => {
             <FolderGit2 className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-base font-extrabold text-zinc-900">No project evidence logged yet</h3>
+            <h3 className="text-base font-extrabold text-zinc-900">No projects in portfolio yet</h3>
             <p className="text-xs text-zinc-500 mt-1">
               Add your first GitHub repository or deployed project to tag technologies and prove your competence.
             </p>
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold inline-flex items-center gap-2 transition-all shadow-xs"
+            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold inline-flex items-center gap-2 transition-all shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add First Project
           </button>
@@ -344,7 +344,7 @@ const Projects = () => {
             
             <div className="flex justify-between items-center pb-2 border-b border-zinc-100">
               <h2 className="text-lg font-extrabold text-zinc-900">
-                {editingId ? 'Edit Project Evidence' : 'Add Project Evidence'}
+                {editingId ? 'Edit Project' : 'Add Project'}
               </h2>
               <button
                 onClick={() => setModalOpen(false)}

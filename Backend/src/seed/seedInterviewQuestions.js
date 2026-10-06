@@ -221,6 +221,176 @@ const interviewSeedData = [
       'Durability persists committed changes across crashes via write-ahead logging.'
     ],
     companyTags: ['Stripe', 'Visa', 'Bloomberg', 'JPMorgan']
+  },
+
+  // --- BACKEND: REST APIS ---
+  {
+    domain: 'Backend',
+    technology: 'REST APIs',
+    topic: 'HTTP Methods & Idempotency',
+    difficulty: 'Intermediate',
+    order: 14,
+    question: 'What constitutes a truly RESTful API, and what is the difference between PUT and PATCH?',
+    answer: 'Representational State Transfer (REST) is an architectural style for distributed hypermedia systems. Key constraints include stateless client-server communication, uniform resource interfaces via URIs, and standard HTTP methods.\n\n**PUT vs PATCH:**\n- **PUT (Replacement & Idempotent):** Used to completely replace the entire resource state at the target URI. If attributes are omitted in the request body, they are expected to be overwritten or reset to default null values. PUT is strictly idempotent: making the same PUT request 10 times results in the exact same resource state as making it once.\n- **PATCH (Partial Modification & Non-Idempotent by spec):** Used to update only specific designated fields of a resource without altering unmentioned properties. While PATCH requests can be designed to be idempotent in practice, JSON Patch sequences (like append operations) are technically not idempotent.',
+    codeSnippet: '// PUT replaces the entire user entity\nPUT /api/users/123\n{ "name": "Archi Kumari", "email": "archi@example.com", "role": "student" }\n\n// PATCH updates only specific changed fields\nPATCH /api/users/123\n{ "role": "lead_engineer" }',
+    keyPoints: [
+      'REST relies on stateless communication, uniform URIs, and standard HTTP verbs.',
+      'PUT replaces the complete entity and is idempotent.',
+      'PATCH applies partial delta updates to existing fields.'
+    ],
+    companyTags: ['Twilio', 'Stripe', 'Amazon', 'Shopify']
+  },
+  {
+    domain: 'Backend',
+    technology: 'REST APIs',
+    topic: 'API Design & HTTP Status Codes',
+    difficulty: 'Intermediate',
+    order: 15,
+    question: 'How should RESTful APIs handle status codes (200, 201, 204, 400, 401, 403, 404, 409, 429) and cursor pagination?',
+    answer: 'Proper HTTP status codes convey exact semantic outcome to API consumers:\n- **200 OK:** Successful read or update with response body.\n- **201 Created:** New resource created (returns `Location` header or created document).\n- **204 No Content:** Successful action with no response body (e.g. DELETE).\n- **400 Bad Request:** Malformed payload or validation error.\n- **401 Unauthorized:** Missing or invalid authentication credentials/token.\n- **403 Forbidden:** Authenticated user lacks permission for this specific resource.\n- **404 Not Found:** Target URI resource does not exist.\n- **409 Conflict:** State collision (e.g. duplicate email registration or duplicate job application).\n- **429 Too Many Requests:** Rate limit ceiling reached.\n\n**Cursor Pagination:** Unlike offset-based pagination (`skip=1000`) which degrades at scale and suffers from missing/duplicate items when rows are inserted, cursor pagination filters by indexed keyset pointers (`where id > cursor limit 20`), providing O(1) performance.',
+    codeSnippet: '// Clean Express status response pattern\nif (!job) return res.status(404).json({ error: "Job not found" });\nif (existingApp) return res.status(409).json({ error: "Already applied" });\nreturn res.status(201).json({ success: true, application });',
+    keyPoints: [
+      'Status code classes: 2xx success, 4xx client errors, 5xx server faults.',
+      '401 represents missing credentials; 403 represents insufficient authorization rights.',
+      'Cursor-based pagination outperforms offset pagination on large datasets.'
+    ],
+    companyTags: ['GitHub', 'Meta', 'Stripe', 'Square']
+  },
+
+  // --- DEVOPS: GIT ---
+  {
+    domain: 'DevOps',
+    technology: 'Git',
+    topic: 'Branching Strategies & History',
+    difficulty: 'Intermediate',
+    order: 16,
+    question: 'Explain the difference between `git merge` and `git rebase`. When should each be used?',
+    answer: 'Both `git merge` and `git rebase` incorporate commits from one branch into another, but they create fundamentally different commit graphs:\n\n1. **`git merge` (Preserves History):** Creates a new "merge commit" that ties together the histories of both branches. The historical sequence and timestamps of when branches were created and merged are completely preserved. Non-destructive, but can result in cluttered history graphs with complex branch knots.\n2. **`git rebase` (Rewrites History):** Takes the commits from your feature branch, rewrites them with new hashes, and applies them sequentially on top of the tip of the target base branch (`main`). Yields a completely linear, clean history, but rewrites commit SHA hashes.\n\n**Golden Rule:** NEVER rebase commits on public, shared branches (like `main` or `develop`). Rebase locally on personal feature branches to keep history tidy before creating pull requests.',
+    codeSnippet: '# Merging feature into main (creates merge commit)\ngit checkout main\ngit merge feature/auth\n\n# Rebasing local branch on latest main (linear history)\ngit checkout feature/auth\ngit rebase main',
+    keyPoints: [
+      '`git merge` creates a merge commit and preserves full branch topology.',
+      '`git rebase` moves feature commits onto target tip, creating linear history.',
+      'Never rebase shared public branches.'
+    ],
+    companyTags: ['GitLab', 'GitHub', 'Atlassian', 'Red Hat']
+  },
+  {
+    domain: 'DevOps',
+    technology: 'Git',
+    topic: 'Conflict Resolution & Commits',
+    difficulty: 'Intermediate',
+    order: 17,
+    question: 'What is `git cherry-pick`, and what is the best practice workflow for resolving merge conflicts safely?',
+    answer: '`git cherry-pick <commit-hash>` applies the changes from an existing commit on one branch directly onto your current working branch as a brand new commit. It is ideal for backporting critical bug fixes to production branches without merging entire unfinished feature branches.\n\n**Merge Conflict Resolution Workflow:**\n1. Identify conflicting files via `git status`.\n2. Open files to inspect `<<<<<<< HEAD` (current branch), `=======` (separator), and `>>>>>>> branch` (incoming branch) conflict markers.\n3. Coordinate with author or select intended logic, saving cleaned code.\n4. Run tests/build to verify integration integrity.\n5. Stage resolved files: `git add <file>`.\n6. Finalize merge or rebase: `git commit` or `git rebase --continue`.',
+    codeSnippet: '# Cherry-pick specific hotfix commit onto stable branch\ngit checkout production\ngit cherry-pick e4a2b1c',
+    keyPoints: [
+      '`git cherry-pick` isolates and applies specific commits across branches.',
+      'Conflict markers delimit current branch logic vs incoming branch changes.',
+      'Always run automated tests after resolving merge conflicts.'
+    ],
+    companyTags: ['Amazon', 'Google', 'Microsoft']
+  },
+
+  // --- DEVOPS: DOCKER ---
+  {
+    domain: 'DevOps',
+    technology: 'Docker',
+    topic: 'Containerization & Multi-Stage Builds',
+    difficulty: 'Intermediate',
+    order: 18,
+    question: 'Explain the difference between a Docker Image and a Docker Container, and how multi-stage builds optimize image size.',
+    answer: '1. **Docker Image:** A read-only, immutable template built from layered filesystems declared in a `Dockerfile`. It packages runtime binaries, system libraries, code, and configuration.\n2. **Docker Container:** A runnable, isolated runtime instance of an image. It adds a thin, read-write container layer on top of the underlying image layers and runs as an isolated process on the host Linux kernel using namespaces and cgroups.\n\n**Multi-Stage Builds:**\nIn standard builds, build tools (compilers, npm cache, source code) bloat production images to 1GB+. Multi-stage builds use multiple `FROM` instructions in a single `Dockerfile`. You compile code in a heavy build stage, then copy only the finalized compiled production artifacts into a tiny lightweight base image (like `alpine` or `node:slim`). This reduces image size from ~1GB to ~100MB and shrinks the attack surface.',
+    codeSnippet: '# Multi-stage Dockerfile for React/Vite\nFROM node:18-alpine AS builder\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci\nCOPY . .\nRUN npm run build\n\n# Stage 2: Ultra-lightweight production server\nFROM nginx:alpine\nCOPY --from=builder /app/dist /usr/share/nginx/html\nEXPOSE 80\nCMD ["nginx", "-g", "daemon off;"]',
+    keyPoints: [
+      'Image is immutable blueprint; container is running process with read-write layer.',
+      'Containers share the host OS kernel, making them lightweight compared to virtual machines.',
+      'Multi-stage builds separate build dependencies from minimal production runtimes.'
+    ],
+    companyTags: ['Docker', 'AWS', 'Google Cloud', 'Spotify']
+  },
+  {
+    domain: 'DevOps',
+    technology: 'Docker',
+    topic: 'Dockerfiles & Container Networking',
+    difficulty: 'Advanced',
+    order: 19,
+    question: 'What is the difference between Docker `CMD` and `ENTRYPOINT`, and how do Docker bridge networks connect containers?',
+    answer: 'Both `CMD` and `ENTRYPOINT` define what executable runs when a container launches:\n\n1. **`ENTRYPOINT`:** Defines the **fixed executable** that will always run when the container starts. It is not overridden by default command arguments passed to `docker run` unless `--entrypoint` is explicitly specified.\n2. **`CMD`:** Defines the **default arguments** passed to the `ENTRYPOINT`. If no `ENTRYPOINT` is defined, `CMD` acts as the command. Any arguments provided to `docker run <image> <args>` will completely override `CMD`.\n\n**Best Practice Combination:**\nUse `ENTRYPOINT` to define the binary (`ENTRYPOINT ["npm"]`) and `CMD` to provide default parameters (`CMD ["start"]`). The user can override parameters (`docker run app test`) without breaking the executable binary.\n\n**Bridge Networks:**\nDocker creates an isolated software bridge. Containers attached to the same user-defined bridge network can communicate using internal DNS resolution by container service name (e.g. `backend` connects to `mongodb:27017`) without exposing host ports.',
+    codeSnippet: '# Docker Compose connecting frontend, backend and database\nservices:\n  backend:\n    image: skillgraph-backend\n    environment:\n      - MONGO_URI=mongodb://mongo:27017/skillgraph\n    depends_on:\n      - mongo\n  mongo:\n    image: mongo:6',
+    keyPoints: [
+      '`ENTRYPOINT` sets fixed executable binary; `CMD` supplies overridable default arguments.',
+      'Exec form `["executable", "param"]` is preferred over shell form.',
+      'Custom bridge networks allow inter-container DNS discovery by container name.'
+    ],
+    companyTags: ['Netflix', 'Uber', 'Cloudflare']
+  },
+
+  // --- FRONTEND: TYPESCRIPT ---
+  {
+    domain: 'Frontend',
+    technology: 'TypeScript',
+    topic: 'Type System & Interfaces',
+    difficulty: 'Intermediate',
+    order: 20,
+    question: 'What are the core differences between `type` and `interface` in TypeScript, and when should you prefer one over the other?',
+    answer: 'Both `interface` and `type` alias define contracts for data structures, but they have distinct capabilities:\n\n1. **Declaration Merging:** Interfaces support declaration merging (multiple `interface User` blocks in same or imported scopes automatically merge their fields). Types cannot be re-declared and will throw compiler errors. Interfaces are ideal for library public APIs and extensible models.\n2. **Unions and Primitives:** `type` can define unions (`type Role = "student" | "recruiter"`), intersections, primitives (`type ID = string | number`), and tuple types. Interfaces can only define object shapes and classes.\n3. **Extending:** Interfaces extend via `extends` keyword (`interface A extends B`). Types extend via intersection operator `&` (`type A = B & { id: string }`).\n\n**Rule of Thumb:** Use `interface` for object models and component prop contracts; use `type` for unions, mapped types, and complex conditional transformations.',
+    codeSnippet: '// Union type (Impossible with interface)\ntype ApplicationStatus = "applied" | "shortlisted" | "interview" | "selected" | "rejected";\n\n// Interface with declaration merging\ninterface CandidateProfile {\n  id: string;\n  name: string;\n  status: ApplicationStatus;\n}\n\ninterface CandidateProfile {\n  verifiedSkillsCount: number; // Merged seamlessly\n}',
+    keyPoints: [
+      'Interfaces support declaration merging; types cannot be re-declared.',
+      'Types support unions, primitives, and mapped types.',
+      'Use interfaces for component props and class implementations; types for unions.'
+    ],
+    companyTags: ['Microsoft', 'Slack', 'Airbnb', 'DoorDash']
+  },
+  {
+    domain: 'Frontend',
+    technology: 'TypeScript',
+    topic: 'Generics & Utility Types',
+    difficulty: 'Advanced',
+    order: 21,
+    question: 'Explain Generics in TypeScript (`<T>`) and demonstrate how `Partial<T>`, `Pick<T, K>`, and `Omit<T, K>` operate under the hood.',
+    answer: 'Generics allow writing flexible, reusable code components that work with a variety of types while retaining compile-time type safety instead of degrading to `any`.\n\n**Built-in Mapped Utility Types:**\n1. **`Partial<T>`:** Transforms all properties of `T` to optional (`?`):\n   `type Partial<T> = { [P in keyof T]?: T[P] };`\n   Ideal for update/patch payload functions.\n2. **`Pick<T, K>`:** Constructs a type by picking a subset of keys `K` from `T`:\n   `type Pick<T, K extends keyof T> = { [P in K]: T[P] };`\n3. **`Omit<T, K>`:** Constructs a type by picking all properties from `T` and then removing keys `K`:\n   `type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;`',
+    codeSnippet: 'interface JobApplication {\n  id: string;\n  userId: string;\n  jobId: string;\n  status: string;\n  notes: string;\n}\n\n// Pick only public fields for summary view\ntype AppSummary = Pick<JobApplication, "id" | "status">;\n\n// Exclude internal IDs for form submission\ntype AppSubmission = Omit<JobApplication, "id">;\n\n// Generic API Response Envelope\ninterface ApiResponse<T> {\n  success: boolean;\n  data: T;\n}',
+    keyPoints: [
+      'Generics provide type parameters that preserve type information across calls.',
+      '`Partial<T>` makes all keys optional using mapped property operators.',
+      '`Pick` and `Omit` shape clean input/output interfaces without code duplication.'
+    ],
+    companyTags: ['Stripe', 'Palantir', 'Robinhood']
+  },
+
+  // --- FULL STACK: TESTING ---
+  {
+    domain: 'Full Stack',
+    technology: 'Testing',
+    topic: 'Testing Pyramid & Best Practices',
+    difficulty: 'Intermediate',
+    order: 22,
+    question: 'Explain the Testing Pyramid (Unit, Integration, E2E) and the AAA (Arrange-Act-Assert) pattern.',
+    answer: 'The **Testing Pyramid** provides an optimal distribution strategy for automated software tests:\n\n1. **Unit Tests (Base of Pyramid - 70%):** Test single functions, algorithms, or components in complete isolation. Extremely fast (milliseconds), cheap to maintain, pinpoint exact line failures (e.g. testing skill match calculation formula).\n2. **Integration Tests (Middle - 20%):** Test interactions between integrated units (e.g. Express controller + Mongoose model + MongoDB memory server). Verifies database queries, HTTP headers, middleware auth guards, and status codes.\n3. **End-to-End (E2E) Tests (Peak - 10%):** Test complete user journeys from client UI down to database (e.g. Playwright or Cypress simulating registration to job apply). Slowest, highest cost, but mirrors true end-user experience.\n\n**The AAA Pattern:**\n- **Arrange:** Set up test state, mock data, and test doubles.\n- **Act:** Execute the target function under test.\n- **Assert:** Validate that returned output and state match expected invariants.',
+    codeSnippet: '// Clean AAA Pattern in Jest\ntest("clamps career match score between 0 and 100", () => {\n  // Arrange\n  const matched = 8;\n  const total = 5;\n\n  // Act\n  const score = Math.min(100, Math.max(0, Math.round((matched / total) * 100)));\n\n  // Assert\n  expect(score).toBe(100);\n});',
+    keyPoints: [
+      'Pyramid balances fast feedback (unit) with high confidence (E2E).',
+      'AAA pattern structure: Arrange prerequisites -> Act on subject -> Assert outcomes.',
+      'Integration tests verify cross-module contracts and database queries.'
+    ],
+    companyTags: ['Google', 'Spotify', 'Amazon', 'Meta']
+  },
+  {
+    domain: 'Full Stack',
+    technology: 'Testing',
+    topic: 'Test Doubles & Isolation',
+    difficulty: 'Intermediate',
+    order: 23,
+    question: 'What is the difference between Mocks, Stubs, and Spies in Jest, and why is mocking external network calls essential?',
+    answer: 'Test doubles replace real production dependencies during testing:\n\n1. **Stub:** Returns predefined, hardcoded responses without logic or verifying how often it was called. Used to supply predictable data (e.g. stubbing a user database query).\n2. **Mock:** An object pre-programmed with expectations about which calls it should receive (e.g. verifying `emailService.send()` was invoked with exact recipient).\n3. **Spy:** Wraps an existing real function to record execution metrics (arguments passed, return values, call counts) while optionally delegating to original implementation (`jest.spyOn(console, "log")`).\n\n**Why Mock External Network Calls:**\n1. **Speed & Determinism:** Unit tests must run offline without latency.\n2. **Flakiness Elimination:** External APIs (e.g. Gemini AI, SendGrid) may experience rate limits or network drops.\n3. **Cost & Safety:** Prevents billing charges on third-party APIs and prevents sending accidental real emails during CI/CD runs.',
+    codeSnippet: '// Jest Mocking Example\nconst emailService = require("./emailService");\njest.mock("./emailService");\n\ntest("dispatches notification on application status update", async () => {\n  await updateStatus(appId, "shortlisted");\n  expect(emailService.sendNotification).toHaveBeenCalledWith(\n    expect.objectContaining({ status: "shortlisted" })\n  );\n});',
+    keyPoints: [
+      'Stubs provide canned data; Mocks verify method interactions; Spies observe execution.',
+      'Mock external services to prevent flaky tests, billing costs, and network dependencies.',
+      'Clean up spies after each test (`jest.restoreAllMocks()`) to avoid cross-test pollution.'
+    ],
+    companyTags: ['Netflix', 'Salesforce', 'Airbnb']
   }
 ];
 

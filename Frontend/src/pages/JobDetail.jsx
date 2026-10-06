@@ -20,7 +20,8 @@ import {
   Sparkles,
   ChevronRight,
   Check,
-  AlertCircle
+  AlertCircle,
+  HelpCircle
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
@@ -30,6 +31,7 @@ const JobDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isRecruiterOrAdmin = user?.accountRole === 'recruiter' || user?.accountRole === 'manager' || user?.accountRole === 'admin';
 
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -244,35 +246,71 @@ const JobDetail = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row lg:flex-col gap-2 w-full sm:w-auto">
-              {hasApplied ? (
-                <div className="px-5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Already Applied ({application?.status || 'Submitted'})</span>
-                </div>
-              ) : isClosed ? (
-                <button
-                  disabled
-                  className="px-5 py-2.5 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-400 text-xs font-bold cursor-not-allowed text-center"
+              {isRecruiterOrAdmin ? (
+                <Link
+                  to="/admin/jobs"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                 >
-                  Applications Closed
-                </button>
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>Manage in Recruiter ATS</span>
+                </Link>
               ) : (
-                <button
-                  onClick={() => setShowApplyModal(true)}
-                  className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-sm transition-all flex items-center justify-center gap-2"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Apply Now</span>
-                </button>
-              )}
+                <>
+                  {hasApplied ? (
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <div className={`px-5 py-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-2 ${
+                        ['selected', 'offered'].includes((matchData?.applicationStatus || application?.status || 'applied').toLowerCase())
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                          : (matchData?.applicationStatus || application?.status || '').toLowerCase() === 'interview'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
+                          : (matchData?.applicationStatus || application?.status || '').toLowerCase() === 'shortlisted'
+                          ? 'bg-purple-50 text-purple-800 border-purple-300 shadow-2xs'
+                          : (matchData?.applicationStatus || application?.status || '').toLowerCase() === 'rejected'
+                          ? 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                      }`}>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>
+                          {(matchData?.applicationStatus || application?.status || '').toLowerCase() === 'shortlisted' ? '★ Shortlisted' :
+                           (matchData?.applicationStatus || application?.status || '').toLowerCase() === 'interview' ? '📅 Interview Scheduled' :
+                           ['selected', 'offered'].includes((matchData?.applicationStatus || application?.status || '').toLowerCase()) ? '🎉 Selected' :
+                           (matchData?.applicationStatus || application?.status || '').toLowerCase() === 'rejected' ? '✕ Not Selected' :
+                           '✓ Applied'}
+                        </span>
+                      </div>
+                      <Link
+                        to="/applications"
+                        className="text-[11px] font-bold text-center text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        View in My Applications &rarr;
+                      </Link>
+                    </div>
+                  ) : isClosed ? (
+                    <button
+                      disabled
+                      className="px-5 py-2.5 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-400 text-xs font-bold cursor-not-allowed text-center"
+                    >
+                      Applications Closed
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowApplyModal(true)}
+                      className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Apply Now</span>
+                    </button>
+                  )}
 
-              <Link
-                to={`/jobs/${id}/learning-path`}
-                className="px-6 py-2.5 rounded-xl bg-zinc-900 hover:bg-black text-white text-xs font-bold transition-all flex items-center justify-center gap-2"
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Build My Learning Path &rarr;</span>
-              </Link>
+                  <Link
+                    to={`/interview-prep?jobId=${id}`}
+                    className="px-6 py-2.5 rounded-xl bg-zinc-900 hover:bg-black text-white text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Prepare for Interview &rarr;</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -461,13 +499,21 @@ const JobDetail = () => {
             })}
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex items-center gap-2">
+            <Link
+              to={`/interview-prep?jobId=${id}`}
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Prepare for Interview</span>
+            </Link>
             <Link
               to={`/jobs/${id}/learning-path`}
-              className="w-full py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-indigo-200"
+              className="py-2.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-indigo-200"
+              title="Study Learning Roadmap"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Generate Guided Path</span>
+              <span>Roadmap</span>
             </Link>
           </div>
         </div>

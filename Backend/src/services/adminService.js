@@ -7,6 +7,7 @@ const UserSkill = require('../models/UserSkill');
 const Assessment = require('../models/Assessment');
 const Project = require('../models/Project');
 const DailyActivity = require('../models/DailyActivity');
+const College = require('../models/College');
 const skillGapService = require('./skillGapService');
 const { NotFoundError, BadRequestError } = require('../utils/customErrors');
 
@@ -15,6 +16,7 @@ const getPlatformStats = async () => {
     totalStudents,
     totalRecruiters,
     totalAdmins,
+    totalColleges,
     totalJobs,
     activeJobs,
     totalApplications,
@@ -26,6 +28,7 @@ const getPlatformStats = async () => {
     User.countDocuments({ accountRole: { $in: ['student', 'employee'] } }),
     User.countDocuments({ accountRole: { $in: ['recruiter', 'manager'] } }),
     User.countDocuments({ accountRole: 'admin' }),
+    College.countDocuments(),
     Job.countDocuments(),
     Job.countDocuments({ status: { $in: ['Active', 'active'] } }),
     JobApplication.countDocuments(),
@@ -55,6 +58,7 @@ const getPlatformStats = async () => {
     totalStudents,
     totalRecruiters,
     totalAdmins,
+    totalColleges,
     totalJobs,
     activeJobs,
     totalApplications,

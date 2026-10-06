@@ -1,10 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Compass, BookOpen, Layers, CheckCircle, Target, HelpCircle, ArrowRight, Zap, Info, X, Award } from 'lucide-react';
+import { Compass, BookOpen, Layers, CheckCircle, Target, HelpCircle, ArrowRight, Zap, Info, X, Award, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
+
+const SKILL_PURPOSE_MAP = {
+  'HTML': 'Defines the semantic structure, content layout, and document accessibility of web pages.',
+  'CSS': 'Controls responsive layouts, modern Flexbox/Grid styling, and aesthetic interface design.',
+  'JavaScript': 'Powers dynamic client interactivity, browser events, asynchronous execution, and server logic.',
+  'TypeScript': 'Adds strict compile-time types, interface contracts, and maintainability to large codebases.',
+  'React': 'Constructs reusable component architectures, state trees, virtual DOM diffing, and reactive interfaces.',
+  'Next.js': 'Provides production React framework with SSR, hybrid static site generation, and optimized API routing.',
+  'Node.js': 'Executes JavaScript server-side with an event-driven, non-blocking asynchronous I/O runtime.',
+  'Express.js': 'Builds lightweight, robust HTTP routing layers, middlewares, and RESTful service endpoints.',
+  'MongoDB': 'Persists JSON-like flexible document records with high performance queries, indexing, and aggregations.',
+  'SQL': 'Executes relational table queries, transactional guarantees (ACID), schema normalization, and JOIN operations.',
+  'Git': 'Coordinates distributed code versioning, team branching workflows, pull requests, and commit histories.',
+  'Docker': 'Packages applications into self-contained container images for predictable builds and deployments.',
+  'Kubernetes': 'Automates deployment, horizontal scaling, self-healing, and load-balancing of containerized clusters.',
+  'REST API': 'Standardizes client-server HTTP contracts with clean methods, status codes, and JSON interfaces.',
+  'REST APIs': 'Standardizes client-server HTTP contracts with clean methods, status codes, and JSON interfaces.',
+  'Testing': 'Automates unit, integration, and end-to-end regression validation for reliable releases.',
+  'Data Structures & Algorithms': 'Optimizes computational efficiency, memory consumption, sorting, and graph traversals.',
+  'Object Oriented Programming': 'Encapsulates data, inheritance hierarchies, and polymorphic abstraction patterns.',
+  'DBMS': 'Manages concurrency control, transaction recovery, indexing strategies, and relational data integrity.',
+  'System Design': 'Architects high-availability distributed systems, caching tiers, load balancers, and microservices.',
+  'Machine Learning': 'Develops statistical models that train on structured features to generate predictive classifications.',
+  'Deep Learning': 'Trains multi-layered neural networks for complex computer vision, speech, and generative tasks.',
+  'Python': 'Enables expressive scripting, algorithmic automation, scientific computation, and AI pipelines.',
+  'Java': 'Builds enterprise-grade, statically typed, cross-platform backend services and microservices.'
+};
 
 const CareerExplorer = () => {
   const { user, updateUserProfile } = useAuth();
@@ -15,6 +43,7 @@ const CareerExplorer = () => {
   
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedRoleSkills, setSelectedRoleSkills] = useState([]);
+  const [userSkills, setUserSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(false);
   
   const [actionLoading, setActionLoading] = useState(false);
@@ -30,7 +59,7 @@ const CareerExplorer = () => {
       setLoading(true);
       setError('');
       const res = await api.get('/roles');
-      const fetchedRoles = res.data.roles || [];
+      const fetchedRoles = res.data?.data?.roles || res.data?.roles || [];
       setRoles(fetchedRoles);
       
       // Auto-select target role or first role
@@ -48,6 +77,21 @@ const CareerExplorer = () => {
     fetchCareers();
   }, [user]);
 
+  // Fetch student skills for compatibility matching
+  useEffect(() => {
+    const fetchUserSkills = async () => {
+      if (!user?._id) return;
+      try {
+        const res = await api.get(`/users/${user._id}/skills`);
+        const list = res.data?.data?.skills || res.data?.skills || [];
+        setUserSkills(list);
+      } catch (err) {
+        setUserSkills([]);
+      }
+    };
+    fetchUserSkills();
+  }, [user]);
+
   // Fetch required skills whenever selected career changes
   useEffect(() => {
     const fetchRoleRequirements = async () => {
@@ -55,7 +99,8 @@ const CareerExplorer = () => {
       try {
         setLoadingSkills(true);
         const res = await api.get(`/roles/${selectedRole._id}/skills`);
-        setSelectedRoleSkills(res.data.skills || []);
+        const list = res.data?.data?.skills || res.data?.skills || [];
+        setSelectedRoleSkills(list);
       } catch (err) {
         setSelectedRoleSkills([]);
       } finally {
@@ -64,6 +109,50 @@ const CareerExplorer = () => {
     };
     fetchRoleRequirements();
   }, [selectedRole]);
+
+  // Map user skill knowledge
+  const userSkillMap = useMemo(() => {
+    const map = new Map();
+    userSkills.forEach(us => {
+      const sId = (us.skillId?._id || us.skillId || '').toString();
+      const sName = (us.skillId?.name || us.name || '').toLowerCase();
+      if (sId) map.set(sId, us);
+      if (sName) map.set(sName, us);
+    });
+    return map;
+  }, [userSkills]);
+
+  // Attach purposeful description and status to each role skill
+  const roleSkillsWithStatus = useMemo(() => {
+    return selectedRoleSkills.map(rs => {
+      const sId = (rs.skillId?._id || rs.skillId || '').toString();
+      const sName = rs.skillId?.name || rs.name || 'Skill';
+      const userSkill = userSkillMap.get(sId) || userSkillMap.get(sName.toLowerCase());
+
+      let status = 'not_started';
+      if (userSkill) {
+        if (userSkill.verified || (userSkill.proficiency && userSkill.proficiency >= 1)) {
+          status = 'known';
+        } else {
+          status = 'learning';
+        }
+      }
+
+      const purpose = SKILL_PURPOSE_MAP[sName] || rs.skillId?.description || 'Core engineering competency utilized for role implementation and verification.';
+
+      return {
+        ...rs,
+        skillName: sName,
+        purpose,
+        status
+      };
+    });
+  }, [selectedRoleSkills, userSkillMap]);
+
+  const knownSkillsCount = roleSkillsWithStatus.filter(s => s.status === 'known').length;
+  const matchScore = selectedRoleSkills.length > 0
+    ? Math.min(100, Math.max(0, Math.round((knownSkillsCount / selectedRoleSkills.length) * 100)))
+    : 0;
 
   const handleSelectTarget = async (roleId) => {
     setActionLoading(true);
@@ -258,7 +347,9 @@ const CareerExplorer = () => {
                 >
                   <div className="space-y-1">
                     <span className="block font-extrabold text-[12.5px]">{role.name}</span>
-                    <span className={isSelected ? 'text-indigo-150' : 'text-slate-400'}>{role.department} &bull; {role.level}</span>
+                    <span className={isSelected ? 'text-indigo-150' : 'text-slate-400'}>
+                      {role.department} &bull; {role.level === 'mid' ? 'Mid-Level' : role.level === 'senior' ? 'Senior' : (role.level || '').replace(/lvl\s*\d+/i, '').replace(/level\s*\d+/i, '').trim() || 'Core Track'}
+                    </span>
                   </div>
                   {isTarget && (
                     <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 ${
@@ -276,20 +367,26 @@ const CareerExplorer = () => {
         {/* Right Column: Selected Career Details */}
         {selectedRole && (
           <div className="lg:col-span-8 bg-white border border-slate-200/50 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
-            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Engineering track specification</span>
                 <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight mt-1">{selectedRole.name}</h2>
               </div>
               
-              <button
-                onClick={() => handleSelectTarget(selectedRole._id)}
-                disabled={actionLoading || (user?.targetRoleId?._id || user?.targetRoleId) === selectedRole._id}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-slate-100 disabled:text-slate-400 rounded-xl text-[10.5px] font-bold uppercase tracking-wider transition-all disabled:scale-100 hover:scale-[1.02] shadow-sm flex items-center cursor-pointer"
-              >
-                <Target className="w-3.5 h-3.5 mr-1" />
-                {(user?.targetRoleId?._id || user?.targetRoleId) === selectedRole._id ? 'Selected Target' : 'Set As Target'}
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Compatibility</span>
+                  <span className="text-2xl font-black text-indigo-600">{matchScore}%</span>
+                </div>
+                <button
+                  onClick={() => handleSelectTarget(selectedRole._id)}
+                  disabled={actionLoading || (user?.targetRoleId?._id || user?.targetRoleId) === selectedRole._id}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-slate-100 disabled:text-slate-400 rounded-xl text-[10.5px] font-bold uppercase tracking-wider transition-all disabled:scale-100 hover:scale-[1.02] shadow-sm flex items-center cursor-pointer"
+                >
+                  <Target className="w-3.5 h-3.5 mr-1" />
+                  {(user?.targetRoleId?._id || user?.targetRoleId) === selectedRole._id ? 'Selected Target' : 'Set As Target'}
+                </button>
+              </div>
             </div>
 
             {/* Description */}
@@ -298,26 +395,75 @@ const CareerExplorer = () => {
               <p className="text-xs text-slate-655 leading-relaxed font-semibold">{selectedRole.description || 'Responsible for architecting and deploying engineering applications.'}</p>
             </div>
 
-            {/* Required Core Competencies (Populated dynamically from DB) */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Required Core Competencies</h4>
+            {/* Skills You'll Use in This Role */}
+            <div className="space-y-4 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                    Skills You'll Use in This Role
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Core technical competencies and tools required to build, test, and deploy solutions in this position.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-bold text-slate-500">Readiness:</span>
+                  <span className="px-2.5 py-1 rounded-full text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {knownSkillsCount} / {selectedRoleSkills.length} Verified ({matchScore}%)
+                  </span>
+                </div>
+              </div>
+
               {loadingSkills ? (
-                <div className="text-xs text-slate-400 font-bold animate-pulse">Loading skill requirements...</div>
-              ) : selectedRoleSkills.length === 0 ? (
+                <div className="text-xs text-slate-400 font-bold animate-pulse py-4 text-center">Loading skill requirements...</div>
+              ) : roleSkillsWithStatus.length === 0 ? (
                 <p className="text-xs text-slate-400 italic font-semibold">No specific requirements registered for this role.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {selectedRoleSkills.map((rs, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/40 rounded-xl text-xs font-semibold">
-                      <div className="flex items-center space-x-2">
-                        <Award className="w-4 h-4 text-indigo-500 shrink-0" />
-                        <span className="font-extrabold text-slate-800">{rs.skillId?.name}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {roleSkillsWithStatus.map((sk, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 bg-slate-50 hover:bg-white border border-slate-200/70 hover:border-slate-300 rounded-2xl transition-all shadow-2xs space-y-2.5 flex flex-col justify-between"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                            <Award className="w-4 h-4 text-indigo-500 shrink-0" />
+                            <span>{sk.skillName}</span>
+                          </h4>
+
+                          {/* Clear Status Badge */}
+                          {sk.status === 'known' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                              ✓ You know this
+                            </span>
+                          ) : sk.status === 'learning' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                              → Learn this next
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-zinc-100 text-zinc-600 border border-zinc-200 shrink-0">
+                              ○ Not started
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Purposeful Description */}
+                        <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                          {sk.purpose}
+                        </p>
                       </div>
-                      <div className="flex items-center space-x-2 text-[10px]">
-                        <span className="text-slate-455 font-bold">Lvl {rs.requiredProficiency}</span>
-                        <span className={`px-2 py-0.5 rounded-lg font-black uppercase tracking-wider text-[8px] ${
-                          rs.importance === 'required' ? 'bg-rose-50 text-rose-750 border border-rose-100' : 'bg-slate-100 text-slate-700'
-                        }`}>{rs.importance}</span>
+
+                      <div className="pt-2 flex items-center justify-between border-t border-slate-200/50">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                          {sk.importance === 'required' ? 'Required Competency' : 'Valuable Competency'}
+                        </span>
+                        <Link
+                          to={`/interview-prep?tech=${encodeURIComponent(sk.skillName)}`}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5"
+                        >
+                          <span>Practice &rarr;</span>
+                        </Link>
                       </div>
                     </div>
                   ))}

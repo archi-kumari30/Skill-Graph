@@ -200,3 +200,51 @@ Retrieves technical interview question bank. Supports filters: `domain`, `techno
 ### `POST /api/interview-prep/:id/toggle-mastered` (Protected: `student`)
 Toggles mastery status for a question. Automatically logs a `DailyActivity` event of type `interview_prep` when marked as mastered.
 
+---
+
+## 10. Notification Center API (`/api/notifications`)
+
+### `GET /api/notifications` (Protected)
+Retrieves paginated notifications for the authenticated user, ordered newest first.
+- **Query Params**: `page` (default 1), `limit` (default 20), `unreadOnly` (boolean)
+- **Response**: `200 OK` with `{ notifications: [...], unreadCount: N, total: N, page: 1, pages: 1 }`
+
+### `GET /api/notifications/unread-count` (Protected)
+Returns lightweight count of unread notifications for badge rendering.
+- **Response**: `200 OK` with `{ unreadCount: N }`
+
+### `PATCH /api/notifications/:id/read` (Protected)
+Marks a single notification as read.
+- **Response**: `200 OK` with `{ notification: { ... } }`
+
+### `PATCH /api/notifications/mark-all-read` (Protected)
+Marks all notifications as read for the authenticated user.
+- **Response**: `200 OK` with `{ message: "All notifications marked as read." }`
+
+---
+
+## 11. AI Career Assistant & Streaming API (`/api/ai`)
+
+### `POST /api/ai/chat/stream` (Protected)
+Real Server-Sent Events (SSE) streaming endpoint for interactive career and skill guidance.
+- **Headers**: `Accept: text/event-stream`
+- **Request Body**:
+  ```json
+  {
+    "question": "What skills should I learn next for Full Stack Developer?",
+    "history": [
+      { "sender": "user", "text": "Hello" },
+      { "sender": "ai", "text": "Hello! How can I assist you?" }
+    ]
+  }
+  ```
+- **Response Stream**:
+  - `Content-Type: text/event-stream`
+  - Chunks: `data: {"chunk":"..."}\n\n`
+  - Completion: `data: {"done":true}\n\n` or `data: [DONE]\n\n`
+
+### `POST /api/ai/career-assistant` (Protected)
+Standard synchronous response fallback endpoint.
+- **Response**: `200 OK` with `{ response: "Guidance text..." }`
+
+

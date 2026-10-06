@@ -22,10 +22,13 @@ import EmptyState from '../components/EmptyState';
 const STATUS_BADGES = {
   applied: { label: 'Applied', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
   under_review: { label: 'Under Review', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  shortlisted: { label: 'Shortlisted', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
-  interview: { label: 'Interview', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
-  offered: { label: 'Offer Received', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  rejected: { label: 'Not Selected', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
+  reviewing: { label: 'In Review', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  shortlisted: { label: '★ Shortlisted', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
+  interview: { label: '📅 Interview Scheduled', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+  interviewing: { label: '📅 Interview Scheduled', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+  selected: { label: '🎉 Selected', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-extrabold' },
+  offered: { label: '🎉 Offer Received', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-extrabold' },
+  rejected: { label: '✕ Not Selected', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
   withdrawn: { label: 'Withdrawn', bg: 'bg-zinc-100 text-zinc-600 border-zinc-200' }
 };
 
@@ -57,17 +60,18 @@ const Applications = () => {
   if (error) return <ErrorState message={error} onRetry={fetchApplications} />;
 
   const filteredApps = applications.filter(app => {
+    const st = (app.status || '').toLowerCase();
     if (filter === 'all') return true;
-    if (filter === 'active') return ['applied', 'under_review', 'shortlisted', 'interview'].includes(app.status);
-    if (filter === 'offered') return app.status === 'offered';
-    if (filter === 'rejected') return app.status === 'rejected';
+    if (filter === 'active') return ['applied', 'under_review', 'reviewing', 'shortlisted', 'interview', 'interviewing'].includes(st);
+    if (filter === 'offered') return ['offered', 'selected'].includes(st);
+    if (filter === 'rejected') return st === 'rejected';
     return true;
   });
 
   const totalCount = applications.length;
-  const interviewingCount = applications.filter(a => ['shortlisted', 'interview'].includes(a.status)).length;
-  const offeredCount = applications.filter(a => a.status === 'offered').length;
-  const inReviewCount = applications.filter(a => ['applied', 'under_review'].includes(a.status)).length;
+  const interviewingCount = applications.filter(a => ['shortlisted', 'interview', 'interviewing'].includes((a.status || '').toLowerCase())).length;
+  const offeredCount = applications.filter(a => ['offered', 'selected'].includes((a.status || '').toLowerCase())).length;
+  const inReviewCount = applications.filter(a => ['applied', 'under_review', 'reviewing'].includes((a.status || '').toLowerCase())).length;
 
   return (
     <div className="space-y-8 font-sans max-w-6xl mx-auto animate-in fade-in duration-200">
@@ -124,7 +128,7 @@ const Applications = () => {
         {[
           { key: 'all', label: `All (${totalCount})` },
           { key: 'active', label: `In Progress (${inReviewCount + interviewingCount})` },
-          { key: 'offered', label: `Offers (${offeredCount})` },
+          { key: 'offered', label: `Selected & Offers (${offeredCount})` },
           { key: 'rejected', label: `Archived` }
         ].map(tab => (
           <button
@@ -204,10 +208,10 @@ const Applications = () => {
                 {/* Right Action Buttons */}
                 <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                   <Link
-                    to={`/jobs/${job._id || job.id}/learning-path`}
-                    className="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold transition-colors flex items-center gap-1.5"
+                    to={`/interview-prep?jobId=${job._id || job.id}`}
+                    className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-colors flex items-center gap-1.5"
                   >
-                    <span>Path</span>
+                    <span>Prepare for Interview</span>
                     <ArrowRight className="w-3 h-3" />
                   </Link>
 

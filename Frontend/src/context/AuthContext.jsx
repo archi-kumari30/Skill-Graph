@@ -27,8 +27,9 @@ export const AuthProvider = ({ children }) => {
         // Attempt silent cookie recovery if token is absent
         try {
           const res = await api.post('/auth/refresh');
-          const refreshedToken = res.data?.accessToken || res.data?.token;
-          const refreshedUser = res.data?.user;
+          const resData = res.data?.data || res.data;
+          const refreshedToken = resData?.accessToken || resData?.token;
+          const refreshedUser = resData?.user;
           if (refreshedToken && refreshedUser) {
             localStorage.setItem('skillgraph_token', refreshedToken);
             localStorage.setItem('token', refreshedToken);
@@ -48,8 +49,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    const loggedUser = response.data?.user || response.user;
-    const loggedToken = response.data?.accessToken || response.data?.token || response.token;
+    const resData = response.data?.data || response.data;
+    const loggedUser = resData?.user || response.user;
+    const loggedToken = resData?.accessToken || resData?.token || response.token;
 
     if (loggedToken) {
       localStorage.setItem('skillgraph_token', loggedToken);
@@ -64,8 +66,9 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     const response = await api.post('/auth/register', userData);
-    const registeredUser = response.data?.user || response.user;
-    const registeredToken = response.data?.accessToken || response.data?.token || response.token;
+    const resData = response.data?.data || response.data;
+    const registeredUser = resData?.user || response.user;
+    const registeredToken = resData?.accessToken || resData?.token || response.token;
 
     if (registeredToken) {
       localStorage.setItem('skillgraph_token', registeredToken);

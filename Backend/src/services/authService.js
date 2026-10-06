@@ -96,11 +96,33 @@ const register = async (userData, req) => {
 };
 
 const login = async (email, password, req) => {
-  if (!email || !password) {
-    throw new BadRequestError('Please provide email and password');
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    throw new BadRequestError('Please provide an email address');
   }
 
-  const user = await User.findOne({ email }).select('+password');
+  const trimmedEmail = email.trim().toLowerCase();
+  if (trimmedEmail.length > 100) {
+    throw new BadRequestError('Email address cannot exceed 100 characters');
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    throw new BadRequestError('Please provide a valid email address');
+  }
+
+  if (!password || typeof password !== 'string') {
+    throw new BadRequestError('Please provide a password');
+  }
+
+  if (password.length < 6) {
+    throw new BadRequestError('Password must be at least 6 characters long');
+  }
+
+  if (password.length > 128) {
+    throw new BadRequestError('Password cannot exceed 128 characters');
+  }
+
+  const user = await User.findOne({ email: trimmedEmail }).select('+password');
   if (!user || !(await user.correctPassword(password, user.password))) {
     throw new UnauthorizedError('Incorrect email or password');
   }

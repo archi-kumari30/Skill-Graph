@@ -2,7 +2,7 @@ const jobService = require('../services/jobService');
 const { catchAsync } = require('../utils/helpers');
 
 const getJobs = catchAsync(async (req, res, next) => {
-  const result = await jobService.getJobs(req.query);
+  const result = await jobService.getJobs(req.query, req.user);
   if (result && result.pagination) {
     return res.status(200).json({
       success: true,
@@ -103,7 +103,7 @@ const getMyApplications = catchAsync(async (req, res, next) => {
 });
 
 const getAllApplications = catchAsync(async (req, res, next) => {
-  const applications = await jobService.getAllApplications(req.query);
+  const applications = await jobService.getAllApplications(req.query, req.user);
   res.status(200).json({
     success: true,
     data: { applications }

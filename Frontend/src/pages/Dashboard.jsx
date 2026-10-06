@@ -40,7 +40,7 @@ const Dashboard = () => {
       setLoading(true);
       setError('');
       const res = await api.get('/dashboard/command-center');
-      setCommandData(res?.data);
+      setCommandData(res?.data?.data || res?.data);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to load Command Center data');
     } finally {
@@ -502,7 +502,7 @@ const Dashboard = () => {
               >
                 <div className="flex items-center gap-2.5">
                   <FolderGit2 className="w-4 h-4 text-purple-600" />
-                  <span className="text-xs font-bold">Log Project Evidence</span>
+                  <span className="text-xs font-bold">Portfolio & Projects</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
               </Link>
@@ -552,7 +552,7 @@ const Dashboard = () => {
           <div className="bg-white rounded-3xl p-6 border border-zinc-200/90 shadow-xs space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-extrabold text-xs uppercase tracking-wider text-zinc-400">
-                Project Portfolio
+                Portfolio & Projects
               </h3>
               <Link to="/projects" className="text-[11px] font-bold text-indigo-600 hover:underline">
                 View all &rarr;
@@ -563,7 +563,7 @@ const Dashboard = () => {
               <div className="text-center py-4 space-y-2">
                 <p className="text-xs text-zinc-400 italic">No project proof linked yet.</p>
                 <Link to="/projects" className="text-xs font-bold text-indigo-600 hover:underline">
-                  + Add Project Evidence
+                  + Add Project
                 </Link>
               </div>
             ) : (

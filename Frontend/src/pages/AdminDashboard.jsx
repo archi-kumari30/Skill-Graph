@@ -18,7 +18,8 @@ import {
   Sparkles,
   Network,
   Clock,
-  AlertCircle
+  AlertCircle,
+  GraduationCap
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -76,7 +77,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* High-Level Metric Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         
         {/* Students Card */}
         <div className="bg-white rounded-2xl p-6 border border-zinc-200/80 shadow-xs hover:border-zinc-300 transition-all flex flex-col justify-between">
@@ -116,6 +117,27 @@ const AdminDashboard = () => {
             className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-bold text-purple-600 hover:text-purple-700 group"
           >
             <span>Manage Recruiters</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </div>
+
+        {/* Partner Colleges Card */}
+        <div className="bg-white rounded-2xl p-6 border border-zinc-200/80 shadow-xs hover:border-zinc-300 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Partner Colleges</span>
+            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-black text-zinc-900">{stats?.totalColleges || 0}</h3>
+            <p className="text-xs text-zinc-500 mt-1">Academic partner campuses</p>
+          </div>
+          <Link
+            to="/admin/colleges"
+            className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-bold text-teal-600 hover:text-teal-700 group"
+          >
+            <span>Manage Colleges</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -297,18 +319,18 @@ const AdminDashboard = () => {
         </Link>
 
         <Link
-          to="/skill-graph"
+          to="/admin/colleges"
           className="bg-white p-5 rounded-2xl border border-zinc-200 hover:border-emerald-400 hover:shadow-sm transition-all group flex items-start space-x-4"
         >
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <Network className="w-5 h-5" />
+            <GraduationCap className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-zinc-900 group-hover:text-emerald-600 transition-colors">
-              Core Skill Graph Topology
+              Manage Partner Colleges
             </h3>
             <p className="text-xs text-zinc-500 mt-1">
-              Inspect systemic prerequisite dependencies and ontological links across technical skills.
+              Maintain authorized academic institutions, inspect enrolled student aggregates, and manage campus partnerships.
             </p>
           </div>
         </Link>

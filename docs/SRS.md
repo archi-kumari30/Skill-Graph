@@ -8,9 +8,9 @@
 - **Project Title**: **SkillGraph: Intelligent Career Readiness, Competency Graph & Recruitment Platform**
 - **GitHub Repository**: **[https://github.com/archi-kumari30/Skill-Graph](https://github.com/archi-kumari30/Skill-Graph)**
 - **Author / Developer**: **Archi Kumari** (`archi-kumari30`)
-- **Document Version**: **2.2.0 (Synchronized Implementation Baseline)**
+- **Document Version**: **2.4.0 (End-to-End Product Flow, Role Isolation & Interview Preparation Integrity)**
 - **Verification Date**: **October 2026**
-- **Automated Test Verification**: **16 Test Suites | 155+ Tests Passing (100% Pass Rate)**
+- **Automated Test Verification**: **16 Test Suites | 163 Tests Passing (100% Pass Rate)**
 - **Target Submission**: **Academic Project Submission & Faculty Review**
 
 ---
@@ -83,7 +83,7 @@ This SRS serves as the authoritative, reverse-engineered, and empirical specific
 | **Frontend Client Port** | `5173` / `5174` / `5175` (`http://localhost:5173`) |
 | **Primary Database Engine** | MongoDB Atlas (Transactional & Directed Graph Persistence) |
 | **Secondary Graph Integration** | Neo4j / CognoDB Bolt Driver (Configured with automated fallback to MongoDB) |
-| **Continuous Testing** | Jest 29.7.0 (`16 suites`, `155+ tests passing`) |
+| **Continuous Testing** | Jest 29.7.0 (`16 suites`, `163 tests passing (100%)`) |
 
 ---
 
@@ -658,22 +658,22 @@ The frontend Single Page Application contains 31 distinct page component files s
 | 8 | `/dashboard` (Admin) | `AdminDashboard.jsx` | Administrative governance console with global platform metrics and system health indicators. |
 | 9 | `/skills` | `MySkills.jsx` | Interactive skill inventory manager; add, edit, delete, and filter logged skills. |
 | 10 | `/skills/:id` | `SkillDetail.jsx` | In-depth skill view displaying proficiency, topics, verified status, and learning resources. |
-| 11 | `/skill-graph` | `SkillGraph.jsx` | Interactive HTML5 2D Canvas force-directed physics graph visualizer. |
-| 12 | `/careers` | `CareerExplorer.jsx` | Career path catalog exploring requirements, salaries, and levels across industry roles. |
+| 11 | `/skill-graph` | `SkillGraph.jsx` | Target Career competency visualizer separating 'YOU KNOW' (Verified / Already Know) from 'YOU NEED TO LEARN' (Learning / Not Started) with strictly clamped Job Match % (0–100%), dual-mode Hierarchy Tree and Network Canvas, and direct preparation CTAs. |
+| 12 | `/careers` | `CareerExplorer.jsx` | Career path catalog exploring requirements, salaries, and levels across industry roles (single source for target role selection). |
 | 13 | `/skill-gaps` | `SkillGaps.jsx` | Comprehensive gap analysis breakdown comparing user proficiencies against target role needs. |
 | 14 | `/recommendations` | `Recommendations.jsx` | Prioritized learning recommendations and quick-win competency upgrades. |
 | 15 | `/progress` | `Progress.jsx` | Visual progress tracker featuring Recharts analytics, topic checklist completion, and milestones. |
 | 16 | `/assessments` | `Assessments.jsx` | Assessment catalog listing available skill quizzes, difficulty tiers, and past attempts. |
 | 17 | `/assessments/:id` | `AssessmentRunner.jsx` | Timed 10-question assessment interface with real-time countdown timer and quiz questions. |
-| 18 | `/interview-prep` | `InterviewPrep.jsx` | Technical interview question bank with domain/tech filters, flashcard practice runner, and mastery tracking. |
-| 19 | `/projects` | `Projects.jsx` | Portfolio showcase managing project evidence, technology tags, and repository/live URLs. |
+| 18 | `/interview-prep` | `InterviewPrep.jsx` | Technical interview question bank with domain/tech filters, real-time search, URL query scoping (`?tech=`, `?jobId=`), flashcard practice runner, and mastery tracking. |
+| 19 | `/projects` | `Projects.jsx` | Portfolio & Projects showcase managing tangible GitHub code repositories, technology tags, and live deployment URLs. |
 | 20 | `/activity` | `Activity.jsx` | Habit tracking dashboard with daily streak counter, study minutes chart, and activity log. |
-| 21 | `/jobs` | `Jobs.jsx` | Matched career opportunities view with calculated compatibility scores and work mode filters. |
-| 22 | `/jobs/:id` | `JobDetail.jsx` | In-depth opportunity analysis with match score, 4-bucket breakdown, education criteria, and modal apply. |
-| 23 | `/jobs/:id/learning-path` | `JobLearningPath.jsx` | Guided Career Learning Path with topological prerequisite-ordered chapters (Kahn's DAG algorithm). |
-| 24 | `/applications` | `Applications.jsx` | Learner application tracker with status pipeline badges (`applied`, `interview`, `offered`, etc.). |
+| 21 | `/jobs` | `Jobs.jsx` | Matched career opportunities view with calculated compatibility scores, "Prepare for Interview" direct CTAs, and work mode filters. |
+| 22 | `/jobs/:id` | `JobDetail.jsx` | In-depth opportunity analysis with match score, 4-bucket breakdown, education criteria, role-guarded modal apply, and "Prepare for Interview" CTA. |
+| 23 | `/jobs/:id/learning-path` | `JobLearningPath.jsx` | Guided Career Learning Path with topological prerequisite-ordered chapters (Kahn's DAG algorithm) and study vs assessment verification callout. |
+| 24 | `/applications` | `Applications.jsx` | Learner application tracker with status pipeline badges (`applied`, `interview`, `offered`, etc.) and "Prepare for Interview" links. |
 | 25 | `/market` | `CareerMarket.jsx` | Industry market analytics exploring in-demand skills, salary distributions, and hiring trends. |
-| 26 | `/profile` | `Profile.jsx` | User profile settings, target role selection, academic details, and account credentials. |
+| 26 | `/profile` | `Profile.jsx` | User profile settings with target role synchronization via Career Paths, verified/learning skill buckets, tangible project links, and application status. |
 | 27 | `/admin/students` | `StudentManagement.jsx` | Admin student directory with search, readiness score tracking, profile inspection, and status toggle. |
 | 28 | `/admin/recruiters` | `RecruiterManagement.jsx` | Admin recruiter directory tracking posted jobs, total applicants, and account status management. |
 | 29 | `/admin/jobs` | `JobManagement.jsx` | Recruiter/Admin job console; create/edit jobs, manage statuses, and define skill requirements. |
@@ -1090,6 +1090,18 @@ erDiagram
 - `isFallback`: Boolean (Default: false)
 - `createdAt`: Date (Default: Date.now)
 
+#### 24. `Notification` (`Backend/src/models/Notification.js`)
+- `userId`: ObjectId $\rightarrow$ `User` (Required, Indexed)
+- `type`: String (Enum: `application_status`, `job_match`, `assessment_result`, `system`, `new_applicant`, Required)
+- `title`: String (Required)
+- `message`: String (Required)
+- `link`: String
+- `read`: Boolean (Default: false, Indexed)
+- `metadata`: Object (e.g., `jobId`, `applicationId`, `score`)
+- `createdAt`: Date (Default: Date.now, Indexed)
+- Compound index: `{ userId: 1, read: 1, createdAt: -1 }`
+- Deduplication index: `{ userId: 1, 'metadata.jobId': 1 }`
+
 ---
 
 ## 27. Security & Defensive Hardening
@@ -1114,7 +1126,7 @@ SkillGraph features an automated end-to-end integration and unit test suite buil
 ### 28.1 Test Execution Benchmark
 ```text
 Test Suites: 16 passed, 16 total
-Tests:       155+ passed, 155+ total
+Tests:       163 passed, 163 total
 Snapshots:   0 total
 Pass Rate:   100%
 Ran all test suites.
@@ -1146,8 +1158,10 @@ To maintain academic integrity, the platform's operational status is explicitly 
 
 ### 29.1 Fully Implemented & Verified (Operational)
 - ✅ Direct Student Registration flow without industry/role selector buttons.
-- ✅ Dynamic Role Dashboard routing (`/dashboard`) serving specialized cockpits for students, recruiters, and admins.
-- ✅ Technical Interview Preparation Question Bank with flashcards, domain filtering, and daily study activity streak integration.
+- ✅ Dynamic Role Dashboard routing (`/dashboard`, `/student/dashboard`, `/recruiter/dashboard`, `/admin/dashboard`) serving specialized cockpits.
+- ✅ Strict Role Route Guards (`<RoleRoute allowedRoles={['student', 'employee']}>`) protecting student learning tools from unauthorized recruiter or admin access.
+- ✅ Target Career Skill Graph with clamped Job Match scores ($0\text{--}100\%$), clear separation of "YOU KNOW" from "YOU NEED TO LEARN", and unambiguous status markers (`✓ Verified`, `✓ Already Know`, `→ Learning`, `○ Not Started`).
+- ✅ Technical Interview Preparation Question Bank with real-time responsive search, URL parameter scoping (`?tech=`, `?jobId=`), flashcards, and streak integration.
 - ✅ Recruiter ATS Pipeline (`/admin/applicants`) with multi-stage status management (`applied` $\rightarrow$ `shortlisted` $\rightarrow$ `interview` $\rightarrow$ `offered` $\rightarrow$ `rejected`).
 - ✅ Recruiter Job Management (`/admin/jobs`) with structured skill buckets (`Required`, `Important`, `Nice to Have`).
 - ✅ Admin Platform Governance Console (`AdminDashboard.jsx`, `StudentManagement.jsx`, `RecruiterManagement.jsx`) with full student record inspection and account status toggles (`isActive`).
@@ -1155,6 +1169,7 @@ To maintain academic integrity, the platform's operational status is explicitly 
 - ✅ Guided Career Learning Path with topological DAG ordering (Kahn's algorithm) and topic checklists.
 - ✅ Timed 10-Question Verified Skill Assessments with automated verification at $\ge 70\%$.
 - ✅ Project Evidence Portfolio linking GitHub repositories and live deployments to competencies.
+- ✅ Student Profile synchronization with Career Explorer as single source, real MongoDB project showcases, and application pipeline tracking.
 - ✅ Daily Study Activity Logging and consecutive calendar day streak calculations.
 - ✅ Grounded AI Career Assistant endpoint (`/api/ai/career-assistant`) with Google Gemini integration and rule-based fallback advisor.
 - ✅ OpenAPI / Swagger documentation mounted at `/api/docs`.

@@ -30,5 +30,16 @@
 | **Project Proof Portfolio Submission (`/projects`)** | Completed | Tested (`tests/assessmentAndEvidence.test.js`) | Verified in UI |
 | **Daily Study Activity & Streak Counter (`/activity`)** | Completed | Tested (`tests/assessmentAndEvidence.test.js`) | Verified in UI |
 | **Context-Aware AI Career Assistant with Grounded Fallback** | Completed | Tested (`tests/aiAssistant.test.js`) | Verified in UI |
-| **Strict Role Isolation in Navigation & Header Layout** | Completed | Tested (`tests/adminAndInterview.test.js`) | Verified in UI |
+| **Real SSE Progressive AI Streaming (`POST /api/ai/chat/stream`)** | Completed | Tested (`tests/aiAssistant.test.js`) | Verified in UI (`<AIAssistant />`) |
+| **In-App & Email Notification Center (Bell, Drawer, Unread Badge)** | Completed | Tested (`Backend/src/services/notificationService.js`) | Verified in UI (`<NotificationCenter />`) |
+| **Career Hierarchy Tree View (Domains &rarr; Tech &rarr; Status &rarr; Levels)** | Completed | Tested | Verified in UI (`/skills/graph`) |
+| **Universal Dismissible Toast UX with Explicit Close 'X' Button** | Completed | Tested | Verified in UI (`App.jsx`) |
+| **Strict Login Validation (Frontend RFC regex + Backend sanitize)** | Completed | Tested (`tests/auth.test.js`) | Verified in UI (`Login.jsx`) |
+| **Strict Assessment-Derived Skill Verification Integrity** | Completed | Tested (`tests/assessmentAndEvidence.test.js`) | Verified in API & UI (`MySkills.jsx`, `Profile.jsx`) |
+| **Recruiter Job & Applicant Query Isolation** | Completed | Tested (`tests/jobPrerequisitesAndLearningPath.test.js`) | Verified in API |
+| **Portfolio & Projects Unified Naming & Repository Verification** | Completed | Tested (`tests/assessmentAndEvidence.test.js`) | Verified in UI (`/projects`) |
+| **Partner College Management Architecture (`/admin/colleges`)** | Completed | Tested (`Backend/src/services/collegeService.js`) | Verified in UI & API |
+| **Skill Graph Route Navigation & Defensive ErrorBoundary** | Completed | Tested (`Frontend/src/pages/SkillGraph.jsx`) | Verified in UI (`/dashboard` &harr; `/skill-graph`) |
+| **Real MongoDB Event-Driven Notification System** | Completed | Tested (`Backend/src/services/notificationService.js`) | Verified in UI (`<NotificationCenter />`) |
 | **Comprehensive Technical Documentation in `/docs`** | Completed | Inspected | Verified in filesystem |
+

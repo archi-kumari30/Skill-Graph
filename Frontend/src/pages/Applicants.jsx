@@ -32,6 +32,7 @@ const STATUS_CONFIG = {
   shortlisted: { label: 'Shortlisted', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   interview: { label: 'Interview', color: 'bg-purple-50 text-purple-700 border-purple-200' },
   interviewing: { label: 'Interviewing', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  selected: { label: 'Selected', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   offered: { label: 'Offered', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   rejected: { label: 'Rejected', color: 'bg-rose-50 text-rose-700 border-rose-200' },
   withdrawn: { label: 'Withdrawn', color: 'bg-zinc-100 text-zinc-600 border-zinc-200' }
@@ -42,6 +43,7 @@ const STATUS_OPTIONS = [
   { value: 'reviewing', label: 'In Review' },
   { value: 'shortlisted', label: 'Shortlisted' },
   { value: 'interview', label: 'Interview' },
+  { value: 'selected', label: 'Selected' },
   { value: 'offered', label: 'Offered' },
   { value: 'rejected', label: 'Rejected' }
 ];
@@ -124,7 +126,7 @@ const Applicants = () => {
     total: applications.length,
     shortlisted: applications.filter(a => a.status?.toLowerCase() === 'shortlisted').length,
     interview: applications.filter(a => ['interview', 'interviewing'].includes(a.status?.toLowerCase())).length,
-    offered: applications.filter(a => a.status?.toLowerCase() === 'offered').length
+    offered: applications.filter(a => ['offered', 'selected'].includes(a.status?.toLowerCase())).length
   };
 
   if (loading) return <LoadingSpinner message="Loading candidate applications..." />;
@@ -172,7 +174,7 @@ const Applicants = () => {
           <div className="text-2xl font-black text-purple-600 mt-1">{stats.interview}</div>
         </div>
         <div className="p-4 bg-white rounded-2xl border border-zinc-200/80 shadow-xs">
-          <span className="text-[10px] font-bold uppercase text-emerald-600">Offers Extended</span>
+          <span className="text-[10px] font-bold uppercase text-emerald-600">Selected / Offered</span>
           <div className="text-2xl font-black text-emerald-600 mt-1">{stats.offered}</div>
         </div>
       </div>
@@ -192,7 +194,7 @@ const Applicants = () => {
 
         <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
           <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider mr-1">Stage:</span>
-          {['ALL', 'applied', 'reviewing', 'shortlisted', 'interview', 'offered', 'rejected'].map(st => (
+          {['ALL', 'applied', 'reviewing', 'shortlisted', 'interview', 'selected', 'offered', 'rejected'].map(st => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -350,6 +352,42 @@ const Applicants = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Quick Action Buttons */}
+                  <div className="flex flex-wrap gap-1 mt-1 justify-start lg:justify-end">
+                    <button
+                      type="button"
+                      disabled={updatingId === app._id || normalizedStatus === 'shortlisted'}
+                      onClick={() => handleStatusChange(app._id, 'shortlisted')}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 disabled:opacity-40 cursor-pointer"
+                    >
+                      Shortlist
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === app._id || normalizedStatus === 'interview'}
+                      onClick={() => handleStatusChange(app._id, 'interview')}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 disabled:opacity-40 cursor-pointer"
+                    >
+                      Interview
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === app._id || normalizedStatus === 'selected'}
+                      onClick={() => handleStatusChange(app._id, 'selected')}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 disabled:opacity-40 cursor-pointer"
+                    >
+                      Select
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === app._id || normalizedStatus === 'rejected'}
+                      onClick={() => handleStatusChange(app._id, 'rejected')}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 disabled:opacity-40 cursor-pointer"
+                    >
+                      Reject
+                    </button>
                   </div>
                 </div>
 

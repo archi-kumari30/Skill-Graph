@@ -18,6 +18,7 @@ router.get('/my-applications', jobController.getMyApplications);
 router.get('/applications', restrictTo('admin', 'manager'), jobController.getAllApplications);
 router.get('/applications/:id', jobController.getApplicationById);
 router.put('/applications/:id/status', jobController.updateApplicationStatus);
+router.patch('/applications/:id/status', jobController.updateApplicationStatus);
 
 // Job specific subroutes
 router.get('/:id/match', jobController.getJobMatch);

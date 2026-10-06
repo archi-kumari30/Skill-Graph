@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster, ToastBar } from 'react-hot-toast';
+import { X } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 
@@ -35,6 +36,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import RecruiterDashboard from './pages/RecruiterDashboard';
 import StudentManagement from './pages/StudentManagement';
 import RecruiterManagement from './pages/RecruiterManagement';
+import CollegeManagement from './pages/CollegeManagement';
 import InterviewPrep from './pages/InterviewPrep';
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -116,14 +118,38 @@ const App = () => {
           toastOptions={{
             duration: 3500,
             style: {
-              background: '#1e293b',
+              background: '#0f172a',
               color: '#f8fafc',
-              fontSize: '14px',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+              fontSize: '13px',
+              borderRadius: '10px',
+              border: '1px solid #334155',
+              boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -4px rgb(0 0 0 / 0.2)',
+              padding: '10px 14px'
             }
           }}
-        />
+        >
+          {(t) => (
+            <ToastBar toast={t}>
+              {({ icon, message }) => (
+                <div className="flex items-center w-full gap-2">
+                  <div className="shrink-0">{icon}</div>
+                  <div className="flex-1 text-xs font-medium leading-relaxed">{message}</div>
+                  {t.type !== 'loading' && (
+                    <button
+                      type="button"
+                      onClick={() => toast.dismiss(t.id)}
+                      className="shrink-0 p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      title="Dismiss notification"
+                      aria-label="Dismiss notification"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </ToastBar>
+          )}
+        </Toaster>
         <Routes>
           {/* Public Landing Page */}
           <Route path="/" element={<Landing />} />
@@ -167,63 +193,90 @@ const App = () => {
           />
 
           <Route
+            path="/student/dashboard"
+            element={<Navigate to="/dashboard" replace />}
+          />
+
+          <Route
+            path="/recruiter/dashboard"
+            element={
+              <RoleRoute allowedRoles={['recruiter', 'manager', 'admin']}>
+                <DashboardLayout>
+                  <RecruiterDashboard />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/admin/dashboard"
+            element={
+              <RoleRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <AdminDashboard />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+
+          <Route
             path="/skills"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <MySkills />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/skills/:id"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <SkillDetail />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/skill-graph"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <SkillGraph />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/skill-gaps"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <SkillGaps />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/recommendations"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <Recommendations />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/progress"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <Progress />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
@@ -259,21 +312,21 @@ const App = () => {
           <Route
             path="/jobs/:id/learning-path"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <JobLearningPath />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/applications"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <Applications />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
@@ -289,11 +342,11 @@ const App = () => {
           <Route
             path="/careers"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <CareerExplorer />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
@@ -307,51 +360,51 @@ const App = () => {
           <Route
             path="/assessments"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <Assessments />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/assessments/:id"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <AssessmentRunner />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/projects"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <Projects />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/activity"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <Activity />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/interview-prep"
             element={
-              <PrivateRoute>
+              <RoleRoute allowedRoles={['student', 'employee']}>
                 <DashboardLayout>
                   <InterviewPrep />
                 </DashboardLayout>
-              </PrivateRoute>
+              </RoleRoute>
             }
           />
 
@@ -372,6 +425,16 @@ const App = () => {
               <RoleRoute allowedRoles={['admin']}>
                 <DashboardLayout>
                   <RecruiterManagement />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/admin/colleges"
+            element={
+              <RoleRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <CollegeManagement />
                 </DashboardLayout>
               </RoleRoute>
             }

@@ -25,7 +25,9 @@ connectDB().then(async () => {
     await runCatalogSeed();
     await runAssessmentSeed();
     await runInterviewSeed();
-    console.log('Safe catalog, assessment, and interview database seeding completed successfully.');
+    const collegeService = require('./services/collegeService');
+    await collegeService.seedDefaultColleges();
+    console.log('Safe catalog, assessment, interview, and college database seeding completed successfully.');
   } catch (err) {
     console.error('Safe seeding failed on startup:', err.message);
   }

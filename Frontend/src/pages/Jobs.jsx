@@ -14,7 +14,8 @@ import {
   Filter,
   Sparkles,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  HelpCircle
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
@@ -143,6 +144,12 @@ const Jobs = () => {
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">
                       {match.workMode || 'Hybrid'}
                     </span>
+                    {match.hasApplied && (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-emerald-600" />
+                        Application: {match.applicationStatus ? match.applicationStatus.toUpperCase() : 'APPLIED'}
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="text-lg sm:text-xl font-black text-zinc-900 tracking-tight leading-tight">
@@ -251,20 +258,46 @@ const Jobs = () => {
                 </div>
 
                 <div className="w-full space-y-2">
-                  <Link
-                    to={`/jobs/${match.jobId}`}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold text-center shadow-xs flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    <span>View Match & Apply</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  {match.hasApplied ? (
+                    <Link
+                      to={`/jobs/${match.jobId}`}
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold text-center shadow-xs flex items-center justify-center gap-1.5 transition-all ${
+                        ['selected', 'offered'].includes(match.applicationStatus?.toLowerCase())
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : match.applicationStatus?.toLowerCase() === 'interview'
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                          : match.applicationStatus?.toLowerCase() === 'shortlisted'
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : match.applicationStatus?.toLowerCase() === 'rejected'
+                          ? 'bg-zinc-700 hover:bg-zinc-800 text-white'
+                          : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>
+                        {match.applicationStatus?.toLowerCase() === 'shortlisted' ? '★ Shortlisted' :
+                         match.applicationStatus?.toLowerCase() === 'interview' ? '📅 Interview Scheduled' :
+                         ['selected', 'offered'].includes(match.applicationStatus?.toLowerCase()) ? '🎉 Selected' :
+                         match.applicationStatus?.toLowerCase() === 'rejected' ? '✕ Not Selected' :
+                         '✓ Applied'}
+                      </span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to={`/jobs/${match.jobId}`}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold text-center shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <span>View Match & Apply</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
 
                   <Link
-                    to={`/jobs/${match.jobId}/learning-path`}
+                    to={`/interview-prep?jobId=${match.jobId}`}
                     className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1.5 transition-all"
                   >
-                    <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Guided Learning Path</span>
+                    <HelpCircle className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Prepare for Interview</span>
                   </Link>
                 </div>
               </div>

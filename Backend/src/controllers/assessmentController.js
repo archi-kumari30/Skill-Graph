@@ -200,6 +200,26 @@ const submitAssessment = catchAsync(async (req, res, next) => {
       details: `Scored ${score}% on "${assessment.title}"`,
       minutesSpent: assessment.timeLimitMinutes || 20
     });
+
+    // Dispatch real in-app notification for verified skill
+    try {
+      const notificationService = require('../services/notificationService');
+      await notificationService.createNotification({
+        userId: req.user._id,
+        type: 'assessment_result',
+        title: `Skill Verified: ${assessment.skillId.name}`,
+        message: `Congratulations! You scored ${score}% on the ${assessment.title} assessment and verified your skill.`,
+        link: `/skills/${assessment.skillId._id}`,
+        metadata: {
+          assessmentId: assessment._id,
+          skillId: assessment.skillId._id,
+          score,
+          difficulty: assessment.difficulty
+        }
+      });
+    } catch (notifErr) {
+      console.warn('Could not create assessment passed notification:', notifErr.message);
+    }
   } else {
     // Log attempt activity
     const today = new Date().toISOString().split('T')[0];

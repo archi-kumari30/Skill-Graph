@@ -5,7 +5,7 @@ const interviewQuestionSchema = new mongoose.Schema(
     domain: {
       type: String,
       required: [true, 'Domain is required'],
-      enum: ['Frontend', 'Backend', 'Database', 'Computer Science', 'General'],
+      enum: ['Frontend', 'Backend', 'Database', 'Computer Science', 'General', 'DevOps', 'Tools', 'Architecture', 'Quality Assurance', 'DevOps & Tools', 'Full Stack'],
       index: true
     },
     technology: {

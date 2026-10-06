@@ -246,17 +246,22 @@ Question: "${question}"
 AI:`;
 
       fullResponse = await callGeminiAPI(systemPrompt);
-      res.write(`data: ${JSON.stringify({ chunk: fullResponse, isFallback: false })}\n\n`);
     } catch (err) {
       console.warn('Gemini stream call failed, falling back to grounded rule engine:', err.message);
       fullResponse = generateFallbackGuidance(user, userSkills, targetRoleGap, recommendations, question);
       isFallback = true;
-      res.write(`data: ${JSON.stringify({ chunk: fullResponse, isFallback: true })}\n\n`);
     }
   } else {
     fullResponse = generateFallbackGuidance(user, userSkills, targetRoleGap, recommendations, question);
     isFallback = true;
-    res.write(`data: ${JSON.stringify({ chunk: fullResponse, isFallback: true })}\n\n`);
+  }
+
+  // Stream in progressive chunks over HTTP SSE stream
+  const chunks = fullResponse.match(/[\s\S]{1,16}/g) || [fullResponse];
+  for (const piece of chunks) {
+    res.write(`data: ${JSON.stringify({ chunk: piece, isFallback })}\n\n`);
+    if (typeof res.flush === 'function') res.flush();
+    await new Promise(resolve => setTimeout(resolve, 20));
   }
 
   // Persist assistant reply

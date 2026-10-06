@@ -12,8 +12,37 @@ const Login = () => {
   const [selectedRole, setSelectedRole] = useState('student'); // 'student' | 'recruiter' | 'admin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const validateEmail = (val) => {
+    if (!val || !val.trim()) {
+      return 'Email address is required.';
+    }
+    if (val.trim().length > 100) {
+      return 'Email address cannot exceed 100 characters.';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(val.trim())) {
+      return 'Please enter a valid email address (e.g. user@example.com).';
+    }
+    return '';
+  };
+
+  const validatePassword = (val) => {
+    if (!val) {
+      return 'Password is required.';
+    }
+    if (val.length < 6) {
+      return 'Password must be at least 6 characters long.';
+    }
+    if (val.length > 128) {
+      return 'Password cannot exceed 128 characters.';
+    }
+    return '';
+  };
 
   // Forgot password modal state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -49,26 +78,34 @@ const Login = () => {
     if (creds) {
       setEmail(creds.email);
       setPassword(creds.password);
+      setEmailError('');
+      setPasswordError('');
       setError('');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      return setError('Please enter both email and password.');
+    const eErr = validateEmail(email);
+    const pErr = validatePassword(password);
+    setEmailError(eErr);
+    setPasswordError(pErr);
+
+    if (eErr || pErr) {
+      return;
     }
+
     setError('');
     setLoading(true);
     try {
-      const loggedUser = await login(email, password);
+      const loggedUser = await login(email.trim().toLowerCase(), password);
       const userRole = loggedUser?.accountRole;
 
       // Smart redirection based on role
       if (userRole === 'admin') {
-        navigate('/admin/skills');
+        navigate('/admin/dashboard');
       } else if (userRole === 'recruiter' || userRole === 'manager') {
-        navigate('/admin/jobs');
+        navigate('/recruiter/dashboard');
       } else {
         navigate('/dashboard');
       }
@@ -241,7 +278,7 @@ const Login = () => {
             </div>
           )}
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleSubmit} noValidate>
             <div>
               <label htmlFor="email" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                 Email Address
@@ -252,11 +289,27 @@ const Login = () => {
                 type="email"
                 autoComplete="email"
                 required
+                maxLength={100}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEmail(val);
+                  if (emailError) setEmailError(validateEmail(val));
+                }}
+                onBlur={() => setEmailError(validateEmail(email))}
                 placeholder={selectedRole === 'admin' ? 'admin@skillgraph.com' : (selectedRole === 'recruiter' ? 'recruiter@skillgraph.com' : 'student@skillgraph.com')}
-                className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none transition-all"
+                className={`w-full px-3.5 py-2 border rounded-lg text-sm bg-slate-50 focus:bg-white focus:outline-none transition-all ${
+                  emailError
+                    ? 'border-rose-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+                }`}
               />
+              {emailError && (
+                <p className="mt-1.5 text-xs text-rose-600 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{emailError}</span>
+                </p>
+              )}
             </div>
 
             <div>
@@ -284,11 +337,27 @@ const Login = () => {
                 type="password"
                 autoComplete="current-password"
                 required
+                maxLength={128}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPassword(val);
+                  if (passwordError) setPasswordError(validatePassword(val));
+                }}
+                onBlur={() => setPasswordError(validatePassword(password))}
                 placeholder="••••••••"
-                className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none transition-all"
+                className={`w-full px-3.5 py-2 border rounded-lg text-sm bg-slate-50 focus:bg-white focus:outline-none transition-all ${
+                  passwordError
+                    ? 'border-rose-300 focus:ring-2 focus:ring-rose-500 focus:border-rose-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+                }`}
               />
+              {passwordError && (
+                <p className="mt-1.5 text-xs text-rose-600 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{passwordError}</span>
+                </p>
+              )}
             </div>
 
             <div>

@@ -31,6 +31,8 @@ const activityRoutes = require('./routes/activityRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const interviewRoutes = require('./routes/interviewRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const collegeRoutes = require('./routes/collegeRoutes');
 
 const app = express();
 
@@ -127,6 +129,8 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/interview-prep', interviewRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/colleges', collegeRoutes);
 
 // Swagger OpenAPI Documentation
 

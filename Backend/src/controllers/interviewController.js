@@ -15,7 +15,8 @@ const getInterviewQuestions = catchAsync(async (req, res, next) => {
     filter.$or = [
       { question: { $regex: search, $options: 'i' } },
       { topic: { $regex: search, $options: 'i' } },
-      { technology: { $regex: search, $options: 'i' } }
+      { technology: { $regex: search, $options: 'i' } },
+      { answer: { $regex: search, $options: 'i' } }
     ];
   }
 

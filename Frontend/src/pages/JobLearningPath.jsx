@@ -16,7 +16,8 @@ import {
   PlayCircle,
   Building2,
   Check,
-  Target
+  Target,
+  Award
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
@@ -293,8 +294,28 @@ const JobLearningPath = () => {
               {/* Collapsible Topics & Practice Checklist */}
               {isExpanded && (
                 <div className="px-5 sm:px-6 pb-6 pt-2 border-t border-zinc-100 space-y-4 bg-[#FAF9F6]/50">
+                  {/* Skill Verification Integrity Callout */}
+                  <div className="bg-indigo-50/80 border border-indigo-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="space-y-0.5">
+                      <p className="font-extrabold text-indigo-950 flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-indigo-600" />
+                        Verification Pipeline: Study &bull; Practice &bull; Verified Assessment
+                      </p>
+                      <p className="text-[11px] text-indigo-800">
+                        Marking topics completed tracks your self-study progress. Official <strong>Verified Status</strong> on your profile and SkillGraph requires scoring &ge;70% on the skill assessment.
+                      </p>
+                    </div>
+                    <Link
+                      to="/assessments"
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shrink-0 shadow-xs flex items-center gap-1 transition-colors"
+                    >
+                      <span>Take Assessment</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+
                   <p className="text-xs text-zinc-500 font-medium">
-                    Topic curriculum for mastering <strong className="text-zinc-800 font-bold">{chapter.skill?.name}</strong> to level {chapter.targetProficiency}/5:
+                    Curriculum topics for mastering <strong className="text-zinc-800 font-bold">{chapter.skill?.name}</strong>:
                   </p>
 
                   <div className="space-y-3">
@@ -355,14 +376,14 @@ const JobLearningPath = () => {
                             <button
                               onClick={(e) => handleToggleTopic(chapter.skill.id, topic.title, topic.completed, e)}
                               disabled={isBusy}
-                              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs ${
+                              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer ${
                                 topic.completed
                                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                                   : 'bg-zinc-100 hover:bg-indigo-600 hover:text-white text-zinc-700'
                               }`}
                             >
                               <CheckCircle2 className={`w-3.5 h-3.5 ${topic.completed ? 'text-white' : 'text-zinc-400'}`} />
-                              <span>{isBusy ? 'Saving...' : topic.completed ? 'Completed' : 'Mark Done'}</span>
+                              <span>{isBusy ? 'Saving...' : topic.completed ? 'Studied ✓' : 'Mark as Studied'}</span>
                             </button>
                           </div>
                         </div>

@@ -153,7 +153,7 @@ const Assessments = () => {
                 <div className="flex items-center space-x-4 text-xs font-semibold text-zinc-500 pt-2 border-t border-zinc-100">
                   <div className="flex items-center gap-1">
                     <HelpCircle className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>{assessment.totalQuestions || 5} Questions</span>
+                    <span>{assessment.totalQuestions || 10} Questions</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-zinc-400" />
