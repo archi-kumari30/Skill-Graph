@@ -19,6 +19,11 @@ import Progress from './pages/Progress';
 import Profile from './pages/Profile';
 import TeamAnalysis from './pages/TeamAnalysis';
 import Jobs from './pages/Jobs';
+import JobDetail from './pages/JobDetail';
+import JobLearningPath from './pages/JobLearningPath';
+import Applications from './pages/Applications';
+import Applicants from './pages/Applicants';
+import JobManagement from './pages/JobManagement';
 import CareerMarket from './pages/CareerMarket';
 import CareerExplorer from './pages/CareerExplorer';
 import Onboarding from './pages/Onboarding';
@@ -26,7 +31,13 @@ import Assessments from './pages/Assessments';
 import AssessmentRunner from './pages/AssessmentRunner';
 import Projects from './pages/Projects';
 import Activity from './pages/Activity';
+import AdminDashboard from './pages/AdminDashboard';
+import RecruiterDashboard from './pages/RecruiterDashboard';
+import StudentManagement from './pages/StudentManagement';
+import RecruiterManagement from './pages/RecruiterManagement';
+import InterviewPrep from './pages/InterviewPrep';
 import LoadingSpinner from './components/LoadingSpinner';
+
 
 // 1. Private Route Guard
 const PrivateRoute = ({ children }) => {
@@ -84,6 +95,18 @@ const RoleRoute = ({ children, allowedRoles }) => {
   return hasAccess ? children : <Navigate to="/dashboard" replace />;
 };
 
+// 4. Role-Based Dynamic Dashboard
+const RoleDashboard = () => {
+  const { user } = useAuth();
+  if (user?.accountRole === 'admin') {
+    return <AdminDashboard />;
+  }
+  if (user?.accountRole === 'recruiter' || user?.accountRole === 'manager') {
+    return <RecruiterDashboard />;
+  }
+  return <Dashboard />;
+};
+
 const App = () => {
   return (
     <AuthProvider>
@@ -137,11 +160,12 @@ const App = () => {
             element={
               <PrivateRoute>
                 <DashboardLayout>
-                  <Dashboard />
+                  <RoleDashboard />
                 </DashboardLayout>
               </PrivateRoute>
             }
           />
+
           <Route
             path="/skills"
             element={
@@ -223,6 +247,36 @@ const App = () => {
             }
           />
           <Route
+            path="/jobs/:id"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <JobDetail />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/jobs/:id/learning-path"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <JobLearningPath />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/applications"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <Applications />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/market"
             element={
               <PrivateRoute>
@@ -290,8 +344,40 @@ const App = () => {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/interview-prep"
+            element={
+              <PrivateRoute>
+                <DashboardLayout>
+                  <InterviewPrep />
+                </DashboardLayout>
+              </PrivateRoute>
+            }
+          />
 
-          {/* restricted Manager/Admin Routes */}
+          {/* Admin Exclusive Routes */}
+          <Route
+            path="/admin/students"
+            element={
+              <RoleRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <StudentManagement />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/admin/recruiters"
+            element={
+              <RoleRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <RecruiterManagement />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+
+          {/* Recruiter & Admin Operations Routes */}
           <Route
             path="/team"
             element={
@@ -302,6 +388,27 @@ const App = () => {
               </RoleRoute>
             }
           />
+          <Route
+            path="/admin/jobs"
+            element={
+              <RoleRoute allowedRoles={['admin', 'recruiter', 'manager']}>
+                <DashboardLayout>
+                  <JobManagement />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/admin/applicants"
+            element={
+              <RoleRoute allowedRoles={['admin', 'recruiter', 'manager']}>
+                <DashboardLayout>
+                  <Applicants />
+                </DashboardLayout>
+              </RoleRoute>
+            }
+          />
+
 
           {/* Catch-all Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

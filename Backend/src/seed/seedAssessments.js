@@ -11,7 +11,7 @@ const seedAssessmentsData = [
     description: 'Evaluate fundamental knowledge of scopes, closures, asynchronous event loop, and modern ES6 features.',
     difficulty: 'intermediate',
     passingScore: 70,
-    timeLimitMinutes: 15,
+    timeLimitMinutes: 20,
     questions: [
       {
         prompt: 'What is the output of the following code snippet?',
@@ -77,6 +77,71 @@ const seedAssessmentsData = [
         correctOptionId: 'b',
         explanation: 'The strict equality operator `===` checks both value equality and type equality without performing implicit type coercion.',
         difficulty: 'beginner'
+      },
+      {
+        prompt: 'What is the value of `this` inside an arrow function?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'It is lexically bound to the enclosing execution context' },
+          { id: 'b', text: 'It always points to the global window/global object' },
+          { id: 'c', text: 'It refers to the object that invoked the arrow function' },
+          { id: 'd', text: 'It is undefined in all execution contexts' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Arrow functions do not bind their own `this`; they inherit `this` from the enclosing lexical scope at creation time.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What does `Promise.all([p1, p2, p3])` do when one of the promises rejects?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'It waits for the other promises to resolve and ignores the rejected one' },
+          { id: 'b', text: 'It immediately rejects with the reason of the first rejected promise' },
+          { id: 'c', text: 'It converts the rejected promise into undefined' },
+          { id: 'd', text: 'It automatically retries the rejected promise three times' }
+        ],
+        correctOptionId: 'b',
+        explanation: '`Promise.all` fails fast: if any promise in the input array rejects, the returned promise immediately rejects with that rejection reason.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What is the purpose of the `WeakMap` data structure in JavaScript?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'To allow keys to be garbage-collected when there are no other references to them' },
+          { id: 'b', text: 'To store numbers in descending order' },
+          { id: 'c', text: 'To prevent duplicate string keys across modules' },
+          { id: 'd', text: 'To serialize nested functions into JSON' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`WeakMap` keys must be objects and are held weakly, meaning they do not prevent garbage collection if no other references to the object key exist.',
+        difficulty: 'advanced'
+      },
+      {
+        prompt: 'What is the output of `0.1 + 0.2 === 0.3` in JavaScript?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'true' },
+          { id: 'b', text: 'false' },
+          { id: 'c', text: 'TypeError' },
+          { id: 'd', text: 'NaN' }
+        ],
+        correctOptionId: 'b',
+        explanation: 'Due to IEEE 754 floating-point precision limitations, `0.1 + 0.2` evaluates to `0.30000000000000004`, which is not strictly equal to `0.3`.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What does `Object.freeze(obj)` accomplish?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'Prevents adding, removing, or modifying properties on the top-level object' },
+          { id: 'b', text: 'Performs a deep recursive freeze of all nested object properties' },
+          { id: 'c', text: 'Encrypts the object in local storage' },
+          { id: 'd', text: 'Makes all properties private to class instances' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`Object.freeze()` performs a shallow freeze on the object, preventing new properties from being added and existing properties from being altered or removed.',
+        difficulty: 'intermediate'
       }
     ]
   },
@@ -86,7 +151,7 @@ const seedAssessmentsData = [
     description: 'Test your understanding of component lifecycle, hooks rules, state management, and the Virtual DOM.',
     difficulty: 'intermediate',
     passingScore: 70,
-    timeLimitMinutes: 15,
+    timeLimitMinutes: 20,
     questions: [
       {
         prompt: 'Why should you avoid directly mutating state variables in React?',
@@ -152,6 +217,71 @@ const seedAssessmentsData = [
         correctOptionId: 'a',
         explanation: 'React relies on the call order of hooks across render cycles to correctly pair state and effects with internal fiber node linked lists.',
         difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What is the primary purpose of the `key` prop when rendering lists of elements in React?',
+        codeSnippet: 'items.map(item => <Item key={item.id} {...item} />)',
+        options: [
+          { id: 'a', text: 'To uniquely identify which items have changed, been added, or been removed during reconciliation' },
+          { id: 'b', text: 'To securely encrypt list items over the network' },
+          { id: 'c', text: 'To apply automatic alternating row CSS styles' },
+          { id: 'd', text: 'To bind onClick event handlers automatically' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Keys give elements a stable identity across renders, allowing React to efficiently update and reorder list elements without recreating entire DOM subtrees.',
+        difficulty: 'beginner'
+      },
+      {
+        prompt: 'What does `useCallback(fn, deps)` return?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'A memoized version of the callback function that only changes if dependencies change' },
+          { id: 'b', text: 'The computed return value of executing the function' },
+          { id: 'c', text: 'A Promise that resolves with the function result' },
+          { id: 'd', text: 'A ref pointing to the underlying DOM node' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`useCallback` caches a function definition between renders, ensuring its reference remains stable when passed as a prop to memoized child components.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'How does React 18 handle automatic batching for state updates?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'Batches state updates inside promises, setTimeout, and native events, not just React event handlers' },
+          { id: 'b', text: 'Disables batching in development mode' },
+          { id: 'c', text: 'Only batches state updates for class components' },
+          { id: 'd', text: 'Batching requires wrapping updates in ReactDOM.batch()' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'React 18 introduced Automatic Batching across all contexts, including setTimeout, promises, and native event listeners, minimizing re-renders.',
+        difficulty: 'advanced'
+      },
+      {
+        prompt: 'When should you choose `useReducer` over `useState`?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'When managing complex state logic that involves multiple sub-values or when the next state depends on previous state' },
+          { id: 'b', text: 'Only when connecting to Redux store' },
+          { id: 'c', text: 'Whenever components have more than two props' },
+          { id: 'd', text: 'Only inside custom hooks' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`useReducer` is preferable for complex state transition logic, state containing nested properties, or when state mutations follow distinct action types.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What does React Context solve, and what is its primary caveat?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'Solves prop drilling; caveat is that all consuming components re-render whenever the context value changes' },
+          { id: 'b', text: 'Solves database querying; caveat is that it only works on the server' },
+          { id: 'c', text: 'Replaces WebSockets; caveat is high network latency' },
+          { id: 'd', text: 'Replaces CSS modules; caveat is browser incompatibility' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Context prevents prop drilling through intermediate components, but any change to the provided value triggers re-renders in all subscribing consumers.',
+        difficulty: 'intermediate'
       }
     ]
   },
@@ -161,7 +291,7 @@ const seedAssessmentsData = [
     description: 'Verify your proficiency in asynchronous server programming, Express middleware, streams, and error handling.',
     difficulty: 'intermediate',
     passingScore: 70,
-    timeLimitMinutes: 15,
+    timeLimitMinutes: 20,
     questions: [
       {
         prompt: 'In Express.js, what does the `next()` function call do inside a middleware handler?',
@@ -214,6 +344,84 @@ const seedAssessmentsData = [
         correctOptionId: 'b',
         explanation: 'The `fs` module provides both synchronous and asynchronous (callback/promise-based) methods for interacting with the file system.',
         difficulty: 'beginner'
+      },
+      {
+        prompt: 'What does the `cluster` module in Node.js allow developers to do?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'Spawn child worker processes that share server ports across multiple CPU cores' },
+          { id: 'b', text: 'Automatically shard MongoDB database clusters' },
+          { id: 'c', text: 'Compress static CSS and JavaScript files' },
+          { id: 'd', text: 'Encrypt HTTPS SSL certificates automatically' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'The `cluster` module enables creating multiple child processes (workers) that share the same server port, taking advantage of multi-core CPU architectures.',
+        difficulty: 'advanced'
+      },
+      {
+        prompt: 'What is the purpose of Node.js Streams?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'To process large data in chunks sequentially without loading the entire dataset into memory' },
+          { id: 'b', text: 'To manage WebRTC audio streams only' },
+          { id: 'c', text: 'To replace Express route controllers' },
+          { id: 'd', text: 'To generate random number sequences' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Streams allow applications to read or write data piece-by-piece, dramatically reducing memory consumption for large file uploads, downloads, or transformations.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What is the difference between `process.nextTick()` and `setImmediate()` in Node.js?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: '`process.nextTick` executes immediately after current operation completes; `setImmediate` runs in the Check phase of the event loop' },
+          { id: 'b', text: '`setImmediate` runs before `process.nextTick`' },
+          { id: 'c', text: '`process.nextTick` only runs in browser environments' },
+          { id: 'd', text: 'They are aliases with identical timing' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`process.nextTick()` queues callbacks to execute prior to advancing to the next event loop phase, whereas `setImmediate()` runs during the Check phase.',
+        difficulty: 'advanced'
+      },
+      {
+        prompt: 'Why should sensitive secrets like JWT secrets and DB connection strings NOT be committed to git repositories?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'Exposed secrets can be compromised by bad actors, leading to data breaches; use environment variables instead' },
+          { id: 'b', text: 'Git will reject commits containing strings with special characters' },
+          { id: 'c', text: 'Node.js cannot read variables from plain text files' },
+          { id: 'd', text: 'It slows down git commit execution time' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Committing credentials creates critical security vulnerabilities. Secure applications load sensitive configuration via environment variables at runtime.',
+        difficulty: 'beginner'
+      },
+      {
+        prompt: 'What does middleware like `helmet` do in an Express application?',
+        codeSnippet: 'app.use(helmet());',
+        options: [
+          { id: 'a', text: 'Sets various security-related HTTP response headers to protect against common web vulnerabilities' },
+          { id: 'b', text: 'Caches database responses in Redis' },
+          { id: 'c', text: 'Minifies HTML output files' },
+          { id: 'd', text: 'Validates user passwords using bcrypt' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Helmet configures HTTP security headers (e.g. Content-Security-Policy, X-Frame-Options, X-Content-Type-Options) to mitigate attacks like clickjacking and XSS.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What is the standard HTTP status code returned for an unauthorized request where authentication is required but missing or invalid?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: '401 Unauthorized' },
+          { id: 'b', text: '403 Forbidden' },
+          { id: 'c', text: '404 Not Found' },
+          { id: 'd', text: '500 Server Error' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'HTTP 401 indicates that the request lacks valid authentication credentials. HTTP 403 indicates the user is authenticated but lacks required permissions.',
+        difficulty: 'beginner'
       }
     ]
   },
@@ -223,7 +431,7 @@ const seedAssessmentsData = [
     description: 'Verify your understanding of document collections, indexing, Mongoose schemas, and aggregation pipelines.',
     difficulty: 'intermediate',
     passingScore: 70,
-    timeLimitMinutes: 15,
+    timeLimitMinutes: 20,
     questions: [
       {
         prompt: 'What is the primary function of creating an index on a MongoDB field?',
@@ -248,155 +456,112 @@ const seedAssessmentsData = [
           { id: 'd', text: '$unwind' }
         ],
         correctOptionId: 'c',
-        explanation: '`$match` filters documents to allow only those that match specified condition(s) to pass to the next pipeline stage.',
+        explanation: '`$match` filters the document stream to allow only matching documents to pass through to the next aggregation stage.',
+        difficulty: 'beginner'
+      },
+      {
+        prompt: 'What does the `$unwind` stage do in a MongoDB aggregation pipeline?',
+        codeSnippet: '{ $unwind: "$requirements" }',
+        options: [
+          { id: 'a', text: 'Deconstructs an array field from the input documents to output a document for each element in the array' },
+          { id: 'b', text: 'Deletes the specified array field permanently' },
+          { id: 'c', text: 'Sorts array elements in descending order' },
+          { id: 'd', text: 'Combines multiple array fields into a single string' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`$unwind` flattens an array field, emitting a copy of each parent document for every item contained in the array.',
         difficulty: 'intermediate'
       },
       {
-        prompt: 'What is a MongoDB `ObjectId` composed of?',
+        prompt: 'In Mongoose, what is the difference between referencing (normalization) and embedding (denormalization)?',
         codeSnippet: '',
         options: [
-          { id: 'a', text: 'A random 32-bit integer' },
-          { id: 'b', text: 'A 12-byte identifier including timestamp, random machine value, and incrementing counter' },
-          { id: 'c', text: 'An SHA-256 hash of the document content' },
-          { id: 'd', text: 'A UUID v4 string' }
-        ],
-        correctOptionId: 'b',
-        explanation: 'A 12-byte BSON ObjectId consists of a 4-byte Unix timestamp, a 5-byte random value, and a 3-byte incrementing counter.',
-        difficulty: 'intermediate'
-      }
-    ]
-  },
-  {
-    skillName: 'HTML',
-    title: 'HTML5 & Semantic Markup Assessment',
-    description: 'Test knowledge of accessible semantic tags, form controls, and modern web document structure.',
-    difficulty: 'beginner',
-    passingScore: 70,
-    timeLimitMinutes: 10,
-    questions: [
-      {
-        prompt: 'Which HTML element should be used to represent the major navigation links of a website?',
-        codeSnippet: '',
-        options: [
-          { id: 'a', text: '<menu>' },
-          { id: 'b', text: '<nav>' },
-          { id: 'c', text: '<section>' },
-          { id: 'd', text: '<links>' }
-        ],
-        correctOptionId: 'b',
-        explanation: 'The `<nav>` semantic element represents a section of a page that links to other pages or parts within the page.',
-        difficulty: 'beginner'
-      },
-      {
-        prompt: 'What is the purpose of the `alt` attribute on an `<img>` tag?',
-        codeSnippet: '<img src="profile.jpg" alt="User avatar" />',
-        options: [
-          { id: 'a', text: 'It sets an alternate URL if the image server fails' },
-          { id: 'b', text: 'It provides an accessible text description for screen readers and search engines' },
-          { id: 'c', text: 'It determines image compression quality' },
-          { id: 'd', text: 'It specifies hover tooltip text in modern browsers' }
-        ],
-        correctOptionId: 'b',
-        explanation: 'The `alt` attribute provides alternative text for accessibility (screen readers) and displays if the image cannot be loaded.',
-        difficulty: 'beginner'
-      },
-      {
-        prompt: 'What does the `<!DOCTYPE html>` declaration at the top of an HTML file do?',
-        codeSnippet: '',
-        options: [
-          { id: 'a', text: 'It tells the browser to render the document in standards mode for HTML5' },
-          { id: 'b', text: 'It imports external HTML stylesheets' },
-          { id: 'c', text: 'It enables JavaScript execution in the browser' },
-          { id: 'd', text: 'It defines the root element of the DOM' }
+          { id: 'a', text: 'Referencing stores ObjectIds linking documents across collections; embedding nests child documents directly inside parent documents' },
+          { id: 'b', text: 'Referencing is only supported in relational SQL databases' },
+          { id: 'c', text: 'Embedding restricts documents to a maximum of 100 bytes' },
+          { id: 'd', text: 'Referencing requires manual JSON serialization' }
         ],
         correctOptionId: 'a',
-        explanation: 'The `<!DOCTYPE html>` declaration ensures the browser operates in standards mode rather than quirks mode.',
-        difficulty: 'beginner'
-      }
-    ]
-  },
-  {
-    skillName: 'CSS',
-    title: 'CSS Layouts & Responsive Design Assessment',
-    description: 'Evaluate mastery of Flexbox, Grid, CSS specificity, and responsive media queries.',
-    difficulty: 'beginner',
-    passingScore: 70,
-    timeLimitMinutes: 10,
-    questions: [
-      {
-        prompt: 'What is the difference between `justify-content` and `align-items` in CSS Flexbox?',
-        codeSnippet: '',
-        options: [
-          { id: 'a', text: 'justify-content aligns items along the main axis; align-items aligns items along the cross axis' },
-          { id: 'b', text: 'justify-content aligns text; align-items aligns images' },
-          { id: 'c', text: 'justify-content is for Grid; align-items is for Flexbox' },
-          { id: 'd', text: 'There is no difference; they are aliases for the same property' }
-        ],
-        correctOptionId: 'a',
-        explanation: 'In Flexbox, `justify-content` defines the alignment along the main axis (default horizontal), and `align-items` defines alignment along the cross axis (default vertical).',
-        difficulty: 'beginner'
-      },
-      {
-        prompt: 'Which CSS selector has the highest specificity?',
-        codeSnippet: '',
-        options: [
-          { id: 'a', text: 'Tag selector: `div`' },
-          { id: 'b', text: 'Class selector: `.header-title`' },
-          { id: 'c', text: 'ID selector: `#main-header`' },
-          { id: 'd', text: 'Universal selector: `*`' }
-        ],
-        correctOptionId: 'c',
-        explanation: 'ID selectors (0,1,0,0) have higher specificity than class selectors (0,0,1,0) and element tag selectors (0,0,0,1).',
-        difficulty: 'beginner'
-      },
-      {
-        prompt: 'What does `box-sizing: border-box;` do?',
-        codeSnippet: '',
-        options: [
-          { id: 'a', text: 'It includes padding and border within the specified element width and height' },
-          { id: 'b', text: 'It excludes padding and borders from total element dimensions' },
-          { id: 'c', text: 'It forces borders to render with 3D shadows' },
-          { id: 'd', text: 'It disables responsive percentage widths' }
-        ],
-        correctOptionId: 'a',
-        explanation: '`border-box` causes padding and borders to be included within the element width and height rather than expanding it.',
-        difficulty: 'beginner'
-      }
-    ]
-  },
-  {
-    skillName: 'Git',
-    title: 'Git Version Control Assessment',
-    description: 'Assess command-line version control, branch workflows, merging, and collaboration.',
-    difficulty: 'beginner',
-    passingScore: 70,
-    timeLimitMinutes: 10,
-    questions: [
-      {
-        prompt: 'What is the key difference between `git merge` and `git rebase`?',
-        codeSnippet: '',
-        options: [
-          { id: 'a', text: '`git merge` creates a merge commit preserving full branch history; `git rebase` rewrites commits linearly onto the base branch' },
-          { id: 'b', text: '`git merge` deletes commits; `git rebase` duplicates repositories' },
-          { id: 'c', text: '`git rebase` only works on remote repositories' },
-          { id: 'd', text: 'They perform the exact same operation with no difference' }
-        ],
-        correctOptionId: 'a',
-        explanation: 'Merging retains all original branch commits and joins them with a merge commit. Rebasing reapplies commits from one branch on top of another to achieve a clean linear commit history.',
+        explanation: 'Embedding keeps related data together in a single document for fast atomic reads, while referencing points to documents in separate collections to avoid duplicate data.',
         difficulty: 'intermediate'
       },
       {
-        prompt: 'Which command stages all modified and newly created files for the next commit?',
+        prompt: 'What is the maximum BSON document size supported by MongoDB?',
         codeSnippet: '',
         options: [
-          { id: 'a', text: 'git commit -m "all"' },
-          { id: 'b', text: 'git add .' },
-          { id: 'c', text: 'git push origin main' },
-          { id: 'd', text: 'git status' }
+          { id: 'a', text: '16 Megabytes' },
+          { id: 'b', text: '4 Megabytes' },
+          { id: 'c', text: '64 Megabytes' },
+          { id: 'd', text: 'Unlimited' }
         ],
-        correctOptionId: 'b',
-        explanation: '`git add .` stages all changes in the current directory and subdirectories to the Git staging index.',
+        correctOptionId: 'a',
+        explanation: 'The maximum BSON document size is 16MB. Storing larger binary files (like videos or large PDFs) typically utilizes GridFS.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What does the `upsert: true` option accomplish in MongoDB update operations?',
+        codeSnippet: 'await Model.updateOne({ email }, { $set: updateData }, { upsert: true });',
+        options: [
+          { id: 'a', text: 'Updates the document if it exists, or creates a new document if no matching document is found' },
+          { id: 'b', text: 'Forces an immediate database flush to disk' },
+          { id: 'c', text: 'Upgrades the database version' },
+          { id: 'd', text: 'Deletes duplicate documents before inserting' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Upsert (update or insert) modifies the document matching filter criteria, or creates a new document matching the filter plus update operations if no match exists.',
         difficulty: 'beginner'
+      },
+      {
+        prompt: 'What query method is used in MongoDB to analyze query execution plan and verify index usage?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: '.explain("executionStats")' },
+          { id: 'b', text: '.debug()' },
+          { id: 'c', text: '.analyze()' },
+          { id: 'd', text: '.inspect()' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`.explain("executionStats")` returns metrics on execution stages (`IXSCAN` vs `COLLSCAN`), total documents examined, and execution time.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What is a TTL (Time-To-Live) index in MongoDB used for?',
+        codeSnippet: 'schema.index({ createdAt: 1 }, { expireAfterSeconds: 3600 });',
+        options: [
+          { id: 'a', text: 'Automatically deleting documents after a specified amount of time or at a specific clock time' },
+          { id: 'b', text: 'Measuring network round-trip latency' },
+          { id: 'c', text: 'Limiting query execution time' },
+          { id: 'd', text: 'Backing up collections hourly' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'TTL indexes allow MongoDB to automatically purge expired documents, ideal for session storage, temporary auth tokens, and audit logs.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'How does MongoDB handle atomic operations?',
+        codeSnippet: '',
+        options: [
+          { id: 'a', text: 'Write operations are atomic at the single-document level' },
+          { id: 'b', text: 'MongoDB does not support any atomic operations' },
+          { id: 'c', text: 'All operations require external two-phase commits' },
+          { id: 'd', text: 'Only read queries are atomic' }
+        ],
+        correctOptionId: 'a',
+        explanation: 'Single-document write operations in MongoDB are always atomic. For multi-document atomicity, MongoDB supports multi-document transactions in replica sets.',
+        difficulty: 'intermediate'
+      },
+      {
+        prompt: 'What does the `$lookup` stage in an aggregation pipeline perform?',
+        codeSnippet: '{ $lookup: { from: "skills", localField: "skillId", foreignField: "_id", as: "skill" } }',
+        options: [
+          { id: 'a', text: 'Performs a left outer join to documents in another collection within the same database' },
+          { id: 'b', text: 'Searches for text in an external Elasticsearch cluster' },
+          { id: 'c', text: 'Performs a DNS lookup on user IP addresses' },
+          { id: 'd', text: 'Downloads images from cloud storage' }
+        ],
+        correctOptionId: 'a',
+        explanation: '`$lookup` brings in matching documents from a foreign collection as an array field, providing relational JOIN capability inside aggregation workflows.',
+        difficulty: 'intermediate'
       }
     ]
   }
@@ -435,6 +600,7 @@ const runAssessmentSeed = async () => {
         existingQ.options = q.options;
         existingQ.correctOptionId = q.correctOptionId;
         existingQ.explanation = q.explanation;
+        existingQ.codeSnippet = q.codeSnippet || '';
         await existingQ.save();
       }
       questionIds.push(existingQ._id);
@@ -453,7 +619,7 @@ const runAssessmentSeed = async () => {
         questions: questionIds,
         isActive: true
       });
-      console.log(`Created Assessment: ${item.title}`);
+      console.log(`Created Assessment: ${item.title} with ${questionIds.length} questions`);
     } else {
       assessment.description = item.description;
       assessment.difficulty = item.difficulty;
@@ -462,7 +628,7 @@ const runAssessmentSeed = async () => {
       assessment.questions = questionIds;
       assessment.isActive = true;
       await assessment.save();
-      console.log(`Updated Assessment: ${item.title}`);
+      console.log(`Updated Assessment: ${item.title} with ${questionIds.length} questions`);
     }
   }
 
@@ -470,5 +636,6 @@ const runAssessmentSeed = async () => {
 };
 
 module.exports = {
-  runAssessmentSeed
+  runAssessmentSeed,
+  seedAssessmentsData
 };

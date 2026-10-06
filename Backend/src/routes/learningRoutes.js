@@ -11,6 +11,7 @@ router.get('/resources', learningController.getAllResources);
 router.get('/topics/catalog', learningController.getTopicCatalog);
 router.get('/topics/progress', learningController.getTopicProgress);
 router.post('/topics/complete', learningController.completeTopic);
+router.post('/topics/:topicId/complete', learningController.completeTopic);
 router.get('/skills/:skillId/topics', learningController.getSkillTopics);
 router.post('/skills/:skillId/topics', restrictTo('admin', 'manager'), learningController.createTopic);
 router.post('/:resourceId/start', learningController.startResource);

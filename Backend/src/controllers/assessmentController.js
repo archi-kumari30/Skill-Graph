@@ -127,6 +127,16 @@ const submitAssessment = catchAsync(async (req, res, next) => {
     topics.forEach(t => weakTopics.push(t.title));
   }
 
+  // Fallback: If learner failed and no specific topic was tagged on questions, provide skill's topics as guidance
+  if (!passed && weakTopics.length === 0 && assessment.skillId) {
+    const sId = assessment.skillId._id || assessment.skillId;
+    const skillTopics = await Topic.find({ skillId: sId }).limit(3);
+    skillTopics.forEach(t => weakTopics.push(t.title));
+    if (weakTopics.length === 0) {
+      weakTopics.push(`${assessment.skillId.name || 'Core'} Fundamentals`);
+    }
+  }
+
   const strongTopics = [];
   if (strongTopicIds.size > 0) {
     const topics = await Topic.find({ _id: { $in: Array.from(strongTopicIds) } });

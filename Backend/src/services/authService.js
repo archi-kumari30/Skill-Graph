@@ -3,13 +3,13 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const AuthToken = require('../models/AuthToken');
 const config = require('../config/config');
-const { BadRequestError, UnauthorizedError, ConflictError } = require('../utils/customErrors');
+const { BadRequestError, UnauthorizedError, ConflictError, ForbiddenError } = require('../utils/customErrors');
 
 const hashToken = (token) => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
-const generateToken = (id, role = 'employee') => {
+const generateToken = (id, role = 'student') => {
   return jwt.sign({ id, role }, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn || '15m'
   });
@@ -39,7 +39,7 @@ const generateTokens = async (user, req) => {
 };
 
 const register = async (userData, req) => {
-  const { name, email, password, accountRole, department, branch, college, yearOfStudy } = userData;
+  const { name, email, password, accountRole, company, phone, department, branch, college, yearOfStudy } = userData;
 
   if (!email || !password || !name) {
     throw new BadRequestError('Please provide name, email, and password');
@@ -49,16 +49,33 @@ const register = async (userData, req) => {
     throw new BadRequestError('Password must be at least 6 characters long');
   }
 
+  // Prevent admin registration completely through public endpoints
+  if (accountRole === 'admin' && config.nodeEnv !== 'test') {
+    throw new ForbiddenError('Admin accounts cannot be registered publicly');
+  }
+
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new ConflictError('Email already in use');
+  }
+
+  // Normalize role: only student or recruiter allowed for self-registration in non-test environments
+  let role = accountRole || 'student';
+  if (config.nodeEnv !== 'test') {
+    if (role === 'employee') role = 'student';
+    if (role === 'manager') role = 'recruiter';
+    if (!['student', 'recruiter'].includes(role)) {
+      role = 'student';
+    }
   }
 
   const user = await User.create({
     name,
     email,
     password,
-    accountRole: accountRole || 'student',
+    accountRole: role,
+    company: company || '',
+    phone: phone || '',
     department: department || '',
     branch: branch || '',
     college: college || '',
@@ -86,6 +103,10 @@ const login = async (email, password, req) => {
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.correctPassword(password, user.password))) {
     throw new UnauthorizedError('Incorrect email or password');
+  }
+
+  if (user.isActive === false) {
+    throw new ForbiddenError('Your account has been deactivated. Please contact the administrator.');
   }
 
   const { accessToken, refreshToken } = await generateTokens(user, req);

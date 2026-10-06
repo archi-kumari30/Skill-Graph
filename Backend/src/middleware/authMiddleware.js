@@ -25,6 +25,10 @@ const protect = async (req, res, next) => {
       return next(new UnauthorizedError('The user belonging to this token no longer exists.'));
     }
 
+    if (currentUser.isActive === false) {
+      return next(new ForbiddenError('Your account has been deactivated. Please contact the administrator.'));
+    }
+
     req.user = currentUser;
     next();
   } catch (error) {
@@ -33,8 +37,18 @@ const protect = async (req, res, next) => {
 };
 
 const restrictTo = (...roles) => {
+  const normalizedAllowedRoles = new Set(roles);
+  if (roles.includes('recruiter') || roles.includes('manager')) {
+    normalizedAllowedRoles.add('recruiter');
+    normalizedAllowedRoles.add('manager');
+  }
+  if (roles.includes('student') || roles.includes('employee')) {
+    normalizedAllowedRoles.add('student');
+    normalizedAllowedRoles.add('employee');
+  }
+
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.accountRole)) {
+    if (!req.user || !normalizedAllowedRoles.has(req.user.accountRole)) {
       return next(
         new ForbiddenError('You do not have permission to perform this action')
       );

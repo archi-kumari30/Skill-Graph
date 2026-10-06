@@ -30,7 +30,7 @@ export const clearApiCache = (pattern) => {
 // Interceptor to inject the JWT auth token and serve fresh GET cache
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('skillgraph_token') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -114,8 +114,10 @@ api.interceptors.response.use(
       } else if (url.includes('/activity')) {
         clearApiCache('/activity');
         clearApiCache('/dashboard');
-      } else if (url.includes('/jobs')) {
+      } else if (url.includes('/jobs') || url.includes('/applications')) {
         clearApiCache('/jobs');
+        clearApiCache('/applications');
+        clearApiCache('/dashboard');
       } else if (url.includes('/users')) {
         clearApiCache('/users');
         clearApiCache('/dashboard');
@@ -177,6 +179,7 @@ api.interceptors.response.use(
           refreshResponse.data?.data?.token;
 
         if (newAccessToken) {
+          localStorage.setItem('skillgraph_token', newAccessToken);
           localStorage.setItem('token', newAccessToken);
           if (refreshResponse.data?.data?.user) {
             localStorage.setItem('user', JSON.stringify(refreshResponse.data.data.user));
@@ -195,7 +198,8 @@ api.interceptors.response.use(
         isRefreshing = false;
 
         // Auto-logout user on failed refresh
-        if (localStorage.getItem('token')) {
+        if (localStorage.getItem('token') || localStorage.getItem('skillgraph_token')) {
+          localStorage.removeItem('skillgraph_token');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           window.location.href = '/login?expired=true';
@@ -208,9 +212,10 @@ api.interceptors.response.use(
     // Auto-logout user on unauthorized status 401 if refresh is not applicable
     if (
       error.response?.status === 401 &&
-      localStorage.getItem('token') &&
+      (localStorage.getItem('token') || localStorage.getItem('skillgraph_token')) &&
       originalRequest?.url?.includes('/auth/refresh')
     ) {
+      localStorage.removeItem('skillgraph_token');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login?expired=true';

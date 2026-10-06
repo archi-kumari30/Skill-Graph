@@ -20,8 +20,11 @@ import {
   Check,
   ChevronRight,
   Zap,
-  Bookmark
+  Bookmark,
+  Briefcase,
+  HelpCircle
 } from 'lucide-react';
+
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
 import toast from 'react-hot-toast';
@@ -69,6 +72,8 @@ const Dashboard = () => {
   const continueTopics = commandData?.continueTopics || [];
   const recentActivities = commandData?.recentActivity || [];
   const recentProjects = commandData?.recentProjects || [];
+  const topMatches = commandData?.topMatches || commandData?.jobMatches || [];
+  const appStats = commandData?.applicationStats || null;
 
   const targetRole = userData?.targetRole;
   const readinessScore = readiness?.score ?? stats?.readinessScore ?? 0;
@@ -371,6 +376,70 @@ const Dashboard = () => {
             )}
           </div>
 
+          {/* Top Job Matches (New Section) */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-zinc-200/90 shadow-xs space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="font-extrabold text-base sm:text-lg text-zinc-900 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-indigo-600" />
+                  <span>Compatible Job Opportunities</span>
+                </h2>
+                <p className="text-xs text-zinc-500">Evaluated deterministically against your verified skill proficiency</p>
+              </div>
+              <Link to="/jobs" className="text-xs font-bold text-indigo-600 hover:underline">
+                View All Jobs &rarr;
+              </Link>
+            </div>
+
+            {topMatches.length === 0 ? (
+              <div className="p-6 text-center bg-[#FAF9F6] rounded-2xl border border-zinc-200 space-y-2">
+                <Briefcase className="w-6 h-6 text-zinc-400 mx-auto" />
+                <p className="text-xs text-zinc-600 font-semibold">
+                  No direct job matches found yet.
+                </p>
+                <Link to="/jobs" className="text-xs font-bold text-indigo-600 hover:underline">
+                  Browse Active Job Catalog &rarr;
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {topMatches.slice(0, 3).map((jobMatch) => (
+                  <div
+                    key={jobMatch.jobId || jobMatch._id}
+                    className="p-4 rounded-2xl border border-zinc-200/80 bg-[#FAF9F6] hover:border-zinc-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Link to={`/jobs/${jobMatch.jobId || jobMatch._id}`} className="font-bold text-xs text-zinc-900 hover:text-indigo-600 transition-colors">
+                          {jobMatch.title}
+                        </Link>
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">
+                          {jobMatch.workMode || 'Hybrid'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 font-medium">
+                        {jobMatch.company?.name || jobMatch.companyName || 'Company'} &bull; {jobMatch.location || 'Remote'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <span className="text-sm font-black text-indigo-600">{jobMatch.matchScore}%</span>
+                        <span className="text-[9px] font-bold text-zinc-400 block uppercase">Match</span>
+                      </div>
+                      <Link
+                        to={`/jobs/${jobMatch.jobId || jobMatch._id}`}
+                        className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors"
+                      >
+                        Details
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Right Column (4 cols): Activity Timeline & Evidence Portfolio */}
@@ -383,6 +452,28 @@ const Dashboard = () => {
             </h3>
             <div className="grid grid-cols-1 gap-2">
               <Link
+                to="/jobs"
+                className="p-3 rounded-xl bg-[#FAF9F6] border border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-zinc-900 transition-all flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Briefcase className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs font-bold">Explore Job Market</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+              </Link>
+
+              <Link
+                to="/applications"
+                className="p-3 rounded-xl bg-[#FAF9F6] border border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-zinc-900 transition-all flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold">My Applications</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+              </Link>
+
+              <Link
                 to="/assessments"
                 className="p-3 rounded-xl bg-[#FAF9F6] border border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-zinc-900 transition-all flex items-center justify-between"
               >
@@ -392,6 +483,18 @@ const Dashboard = () => {
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
               </Link>
+
+              <Link
+                to="/interview-prep"
+                className="p-3 rounded-xl bg-[#FAF9F6] border border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50/30 text-zinc-900 transition-all flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <HelpCircle className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold">Practice Interview Prep</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+              </Link>
+
 
               <Link
                 to="/projects"

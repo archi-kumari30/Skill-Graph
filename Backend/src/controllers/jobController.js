@@ -33,6 +33,55 @@ const getJobMatches = catchAsync(async (req, res, next) => {
   });
 });
 
+const getJobMatch = catchAsync(async (req, res, next) => {
+  const userId = req.user.id || req.user._id;
+  const { id } = req.params;
+  const matchResult = await jobService.getJobMatchForUser(userId, id);
+  res.status(200).json({
+    success: true,
+    data: matchResult
+  });
+});
+
+const getJobLearningPath = catchAsync(async (req, res, next) => {
+  const userId = req.user.id || req.user._id;
+  const { id } = req.params;
+  const learningPath = await jobService.generateJobLearningPath(userId, id);
+  res.status(200).json({
+    success: true,
+    data: { learningPath }
+  });
+});
+
+const createJob = catchAsync(async (req, res, next) => {
+  const job = await jobService.createJob(req.body, req.user);
+  res.status(201).json({
+    success: true,
+    message: 'Job position created successfully',
+    data: { job }
+  });
+});
+
+const updateJob = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const job = await jobService.updateJob(id, req.body, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'Job position updated successfully',
+    data: { job }
+  });
+});
+
+const deleteJob = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const result = await jobService.deleteJob(id, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'Job position deleted successfully',
+    data: result
+  });
+});
+
 const applyForJob = catchAsync(async (req, res, next) => {
   const userId = req.user.id || req.user._id;
   const { id } = req.params;
@@ -50,6 +99,23 @@ const getMyApplications = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: { applications }
+  });
+});
+
+const getAllApplications = catchAsync(async (req, res, next) => {
+  const applications = await jobService.getAllApplications(req.query);
+  res.status(200).json({
+    success: true,
+    data: { applications }
+  });
+});
+
+const getApplicationById = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const application = await jobService.getApplicationById(id, req.user);
+  res.status(200).json({
+    success: true,
+    data: { application }
   });
 });
 
@@ -76,8 +142,15 @@ module.exports = {
   getJobs,
   getJobById,
   getJobMatches,
+  getJobMatch,
+  getJobLearningPath,
+  createJob,
+  updateJob,
+  deleteJob,
   applyForJob,
   getMyApplications,
+  getAllApplications,
+  getApplicationById,
   updateApplicationStatus,
   getMarketAnalytics
 };

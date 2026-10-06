@@ -28,8 +28,12 @@ const aiRoutes = require('./routes/aiRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const activityRoutes = require('./routes/activityRoutes');
+const applicationRoutes = require('./routes/applicationRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const interviewRoutes = require('./routes/interviewRoutes');
 
 const app = express();
+
 
 // 1. Security HTTP Headers
 app.use(helmet({
@@ -109,7 +113,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/skill-graph', skillGraphRoutes);
 app.use('/api/roles', roleRoutes);
-app.use('/api/skill-gap', skillGapRoutes);
+app.use(['/api/skill-gap', '/api/skill-gaps'], skillGapRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/matching', matchingRoutes);
 app.use('/api/team', teamRoutes);
@@ -120,8 +124,12 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/interview-prep', interviewRoutes);
 
 // Swagger OpenAPI Documentation
+
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

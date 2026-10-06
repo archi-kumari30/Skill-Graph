@@ -8,5 +8,7 @@ router.use(protect);
 
 router.get('/summary', dashboardController.getSummary);
 router.get('/command-center', dashboardController.getCommandCenter);
+router.get('/recruiter', dashboardController.getRecruiterDashboard);
 
 module.exports = router;
+

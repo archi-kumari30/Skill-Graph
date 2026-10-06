@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem('token');
+      const storedToken = localStorage.getItem('skillgraph_token') || localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
       if (storedToken && storedUser) {
@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
           setUser(JSON.parse(storedUser));
         } catch (err) {
           // Clear corrupt storage
+          localStorage.removeItem('skillgraph_token');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         }
@@ -29,6 +30,7 @@ export const AuthProvider = ({ children }) => {
           const refreshedToken = res.data?.accessToken || res.data?.token;
           const refreshedUser = res.data?.user;
           if (refreshedToken && refreshedUser) {
+            localStorage.setItem('skillgraph_token', refreshedToken);
             localStorage.setItem('token', refreshedToken);
             localStorage.setItem('user', JSON.stringify(refreshedUser));
             setToken(refreshedToken);
@@ -49,7 +51,10 @@ export const AuthProvider = ({ children }) => {
     const loggedUser = response.data?.user || response.user;
     const loggedToken = response.data?.accessToken || response.data?.token || response.token;
 
-    if (loggedToken) localStorage.setItem('token', loggedToken);
+    if (loggedToken) {
+      localStorage.setItem('skillgraph_token', loggedToken);
+      localStorage.setItem('token', loggedToken);
+    }
     if (loggedUser) localStorage.setItem('user', JSON.stringify(loggedUser));
 
     setToken(loggedToken);
@@ -62,7 +67,10 @@ export const AuthProvider = ({ children }) => {
     const registeredUser = response.data?.user || response.user;
     const registeredToken = response.data?.accessToken || response.data?.token || response.token;
 
-    if (registeredToken) localStorage.setItem('token', registeredToken);
+    if (registeredToken) {
+      localStorage.setItem('skillgraph_token', registeredToken);
+      localStorage.setItem('token', registeredToken);
+    }
     if (registeredUser) localStorage.setItem('user', JSON.stringify(registeredUser));
 
     setToken(registeredToken);
@@ -76,6 +84,7 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {
       // Swallowed on network failure
     }
+    localStorage.removeItem('skillgraph_token');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);

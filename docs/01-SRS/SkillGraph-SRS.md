@@ -305,29 +305,35 @@ The system enforces a strict 3-tier Role-Based Access Control (RBAC) model defin
 ### CURRENTLY IMPLEMENTED
 - **LEARN-01 (Resource Directory)**: Catalogs educational content (`LearningResource`) with provider, duration, difficulty, and URL.
 - **LEARN-02 (Enrollment & Progress Tracking)**: Tracks course enrollment, status lifecycle (`not_started`, `in_progress`, `completed`), and completion percentages.
-- **LEARN-03 (Topic Checklists)**: Users toggle granular topic mastery flags (`UserTopicProgress`), directly impacting readiness formulas.
+- **LEARN-03 (Topic Checklists)**: Users toggle granular topic mastery flags (`UserTopicProgress`), directly updating user proficiency ratings and career readiness formulas in real time.
 - **LEARN-04 (Heuristic Recommendation Engine)**: Ranks recommended skills using formula:
   $$\text{Score} = \text{Base Weight} + (\text{Gap} \times 8) + \text{Prerequisite Bonus/Penalty} + \text{Unlock Bonus}$$
+- **LEARN-05 (Guided Career Learning Paths)**: Inspired by the Naukri Code 360 reference model, generates personalized guided paths (`GET /api/jobs/:id/learning-path`) structured into chapters, topics, and resources. Foundational prerequisites are ordered topologically using Kahn's algorithm so prerequisite competencies appear in earlier chapters than dependent competencies.
 
 ### NOT CURRENTLY IMPLEMENTED
-- **LEARN-05 (Dynamic Topic Modeling)**: Sub-topics are hardcoded in client code and scoring dictionaries rather than being stored in a database collection (`Topic`).
 - **LEARN-06 (LMS Integration)**: External course platform progress synchronization via API webhooks.
 
 ---
 
-## 16. Job Matching Requirements
+## 16. Job Architecture & Matching Requirements
 
 ### CURRENTLY IMPLEMENTED
 - **JOB-01 (Company Directory)**: Catalogs corporate employers with industry, website, and description.
-- **JOB-02 (Job Postings)**: Stores job vacancies with job type, location, salary display string, apply URL, and required skills array.
-- **JOB-03 (Compatibility Matching)**: Computes candidate skill match percentage:
-  $$\text{Match Percentage} = \left(\frac{\text{Matching Skills Count}}{\text{Total Required Skills}}\right) \times 100$$
-- **JOB-04 (Skill Decomposition)**: Decomposes job requirements into matched vs missing competencies.
+- **JOB-02 (Structured Job Requirements)**: Stores job opportunities with titles, work modes (`Remote`, `Hybrid`, `On-site`), employment types (`Full Time`, `Part Time`, `Internship`, `Contract`), experience, salary ranges, deadlines, optional education requirements (`degree`, `branch`, `minGraduationYear`, `minCgpa`), and structured skill requirement buckets (`Required`, `Important`, `Nice to Have`) with expected proficiency benchmarks (1–5).
+- **JOB-03 (Deterministic Weighted Compatibility Matching)**: Computes candidate compatibility match score using weighted contribution formula:
+  $$\text{Match Score} = \left(\frac{\sum (\text{Importance Weight} \times \text{Proficiency Ratio})}{\sum \text{Importance Weight}}\right) \times 100$$
+  where $\text{Proficiency Ratio} = \min\left(1.0, \frac{\text{Current Proficiency}}{\text{Expected Proficiency}}\right)$ and Importance Weights are Required: 3, Important: 2, Nice to have: 1.
+- **JOB-04 (Prerequisite DAG Analysis & Blocked Status)**: Traverses `SkillRelationship` directed acyclic graph to categorize skills into 4 distinct statuses:
+  - **Matched (✓)**: Current proficiency meets or exceeds expected benchmark.
+  - **Partial (⚠)**: Candidate possesses skill but proficiency is lower than required level.
+  - **Missing (✗)**: Candidate does not possess skill, but all graph prerequisites are satisfied.
+  - **Blocked (✗ Blocked)**: Candidate does not possess skill AND is missing upstream prerequisites, exposing the exact causal prerequisite chain (e.g. Advanced React $\rightarrow$ React $\rightarrow$ JavaScript).
+- **JOB-05 (In-App Applications Lifecycle)**: Native job application pipeline (`JobApplication` model, `POST /api/jobs/:id/apply`, `GET /api/applications/my`) supporting optional resume URLs and cover letters, duplicate application prevention via compound unique index `{ userId: 1, jobId: 1 }` (HTTP 409), closed job application blocks (HTTP 400), and status progression (`applied`, `under_review`, `shortlisted`, `interview`, `offered`, `rejected`, `withdrawn`).
+- **JOB-06 (Manager/Admin Job Management Console)**: Dedicated management interface (`/admin/jobs` with `RoleRoute`) allowing managers and admins to post new jobs, manage listings, toggle active/closed states, and interactively build structured skill requirement buckets.
+- **JOB-07 (Dynamic Salary & Work Mode Filtering)**: Supports numeric range filtering (`salaryMin`, `salaryMax`), work mode, and text search across titles and descriptions.
 
 ### NOT CURRENTLY IMPLEMENTED
-- **JOB-05 (In-App Applications)**: Native resume submission and application status pipelines (`applied`, `interviewing`, `offered`).
-- **JOB-06 (Structured Salary Filtering)**: Storing salary as numeric ranges (`minSalary`, `maxSalary`, `currency`) to allow range filtering.
-- **JOB-07 (Dynamic Market Analytics)**: Live market data aggregation (`CareerMarket.jsx` currently displays static sample metrics).
+- **JOB-08 (Automated External Job Board Web Scrapers)**: Live scraping daemon from LinkedIn/Indeed.
 
 ---
 

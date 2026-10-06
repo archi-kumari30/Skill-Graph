@@ -1,9 +1,10 @@
+// Override environment to test
+process.env.NODE_ENV = 'test';
+
 const mongoose = require('mongoose');
 const config = require('../src/config/config');
 const { connectCognoDB, closeDriver } = require('../src/config/cognodb');
 
-// Override environment to test
-process.env.NODE_ENV = 'test';
 jest.setTimeout(15000);
 
 beforeAll(async () => {

@@ -25,10 +25,22 @@ const userSchema = new mongoose.Schema(
     accountRole: {
       type: String,
       enum: {
-        values: ['admin', 'manager', 'employee', 'student'],
-        message: 'Role must be admin, manager, employee, or student'
+        values: ['admin', 'manager', 'employee', 'student', 'recruiter'],
+        message: 'Role must be admin, manager, employee, student, or recruiter'
       },
-      default: 'employee'
+      default: 'student'
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    company: {
+      type: String,
+      default: ''
+    },
+    phone: {
+      type: String,
+      default: ''
     },
     department: {
       type: String,

@@ -13,43 +13,57 @@ The Job Catalog, Company Directory & Job Matching module connects learner compet
 ## 3. Current Functionality
 - **Company Directory (`Company` model)**:
   - Catalogs corporate employers with `name`, unique `slug`, `logo`, `industry`, `website`, and `description`.
-  - Automatically seeded with 10 prominent tech employers (Google, Microsoft, Amazon, Meta, Netflix, Stripe, Spotify, Uber, Airbnb, Datadog) via `seedCatalog.js`.
-- **Job Postings Catalog (`Job` model)**:
-  - Stores job opportunities linked to employers (`companyId`).
-  - Attributes: `title`, `description`, `location` (e.g., "Remote", "San Francisco, CA"), `jobType` (`Full-time`, `Part-time`, `Contract`, `Internship`), `salary` display string, and external `applyUrl`.
-  - Maps requirements using an array of `requiredSkills` (ObjectIds referencing the `Skill` collection).
-  - Seeded with 20 real-world tech job listings across full-stack, backend, DevOps, data science, and mobile domains.
-- **Skill Compatibility Matching Engine (`jobService.js`)**:
-  - Compares the learner's logged competencies (`UserSkill`) against `Job.requiredSkills`.
-  - **Compatibility Formula**:
-    $$\text{Match Percentage} = \left(\frac{\text{Matching Skills Count}}{\text{Total Required Skills}}\right) \times 100$$
-  - Decomposes job requirements into:
-    - `matchedSkills`: Skills the user possesses.
-    - `missingSkills`: Skills the user lacks.
-  - Enables sorting by match percentage, recent postings, and filtering by location, job type, company, and minimum match score.
-- **Job Board UI (`Jobs.jsx`)**:
-  - Searchable interface featuring job cards, employer logos, match percentage badges (color-coded: Green $\ge 80\%$, Amber $\ge 50\%$, Gray $< 50\%$), expandable skill requirement pills, and external apply links.
-- **Career Market Trends (`CareerMarket.jsx`)**:
-  - Provides a broad overview of salary percentiles, in-demand technical stacks, and market demand indicators. *(Note: Displays a clear "Sample Market Data" banner as noted in Current Limitations)*.
+  - Seeded with prominent tech employers (Google, Microsoft, Amazon, Meta, Netflix, Stripe, Spotify, Uber, Airbnb, Datadog).
+- **Structured Job Architecture (`Job` model)**:
+  - Stores job opportunities linked to employers (`companyId`) or direct company names.
+  - Attributes: `title`, `description`, `location` (e.g. "Bangalore", "Remote"), `workMode` (`Remote`, `Hybrid`, `On-site`), `jobType` / `employmentType` (`Full Time`, `Part Time`, `Internship`, `Contract`), `experience` (e.g. "0–2 years"), `salary` (e.g. "8–12 LPA"), numeric ranges (`salaryMin`, `salaryMax`), `applicationUrl`, `deadline`, and `status` (`Draft`, `Active`, `Closed`).
+  - Optional Education Constraints: `degree`, `branch`, `minGraduationYear`, `minCgpa`.
+  - Structured Skill Requirements: Each requirement specifies `skillId`, `importance` (`Required`, `Important`, `Nice to Have`), and `expectedProficiency` (1 to 5).
+- **Deterministic Weighted Compatibility Matching Engine (`jobService.js`)**:
+  - Compares the learner's logged competencies (`UserSkill`) against `Job.requirements`.
+  - Formula incorporates importance weights (Required: 3, Important: 2, Nice to have: 1) and proficiency fulfillment ratios:
+    $$\text{Proficiency Ratio} = \min\left(1.0, \frac{\text{Current Proficiency}}{\text{Expected Proficiency}}\right)$$
+    $$\text{Match Score} = \left(\frac{\sum (\text{Weight} \times \text{Proficiency Ratio})}{\sum \text{Weight}}\right) \times 100$$
+- **Prerequisite DAG Analysis & Blocked Status**:
+  - Traverses `SkillRelationship` DAG to classify skills into:
+    - `matched`: Current proficiency meets or exceeds expected level.
+    - `partial`: Candidate has skill but proficiency is lower than required level.
+    - `missing`: Candidate lacks skill, but all prerequisites are satisfied.
+    - `blocked`: Candidate lacks skill AND is missing upstream prerequisites, exposing the exact causal prerequisite chain (e.g. Advanced React $\rightarrow$ React $\rightarrow$ JavaScript).
+- **Guided Career Learning Paths (`JobLearningPath.jsx`)**:
+  - Inspired by Naukri Code 360 reference; generates a structured guided path (`GET /api/jobs/:id/learning-path`) organized into chapters, topics, and curated resources.
+  - Applies Kahn's algorithm topological sorting on the prerequisite DAG so foundational prerequisites appear in earlier chapters.
+  - Topic completion checklist allows learners to mark topics mastered (`POST /api/learning/topics/complete`), updating skill proficiency and dynamically elevating readiness and match scores in real time.
+- **In-App Application Tracking (`JobApplication` model & `Applications.jsx`)**:
+  - Learners apply directly via modal (`POST /api/jobs/:id/apply`) with optional resume URL and cover letter.
+  - Enforces duplicate prevention via compound unique index `{ userId: 1, jobId: 1 }` (HTTP 409) and closed job validation (HTTP 400).
+  - Tracks status progression (`applied`, `under_review`, `shortlisted`, `interview`, `offered`, `rejected`, `withdrawn`) at `/applications`.
+- **Admin/Manager Job Console (`JobManagement.jsx`)**:
+  - Protected by `RoleRoute` at `/admin/jobs`.
+  - Interactive job creation and editing with dynamic visual requirement buckets (`Required`, `Important`, `Nice to Have`), status toggling, and applicant management.
 
 ---
 
 ## 4. Frontend Files Involved
-- `Frontend/src/pages/Jobs.jsx`: Primary job board displaying job cards, compatibility match meters, filter toolbars, and application buttons.
+- `Frontend/src/pages/Jobs.jsx`: Primary job board with match scores, work mode filters, and direct links to job details and learning paths.
+- `Frontend/src/pages/JobDetail.jsx`: Comprehensive opportunity view with match score ring, "Why is my score X%", 4-category status breakdown (Matched, Partial, Missing, Blocked), education requirements, and modal apply.
+- `Frontend/src/pages/JobLearningPath.jsx`: Guided Career Learning Path with chapters, topological progression, and interactive topic completion checkboxes.
+- `Frontend/src/pages/Applications.jsx`: Learner application tracker with status pipeline badges and direct links.
+- `Frontend/src/pages/JobManagement.jsx`: Manager/Admin job architecture console.
 - `Frontend/src/pages/CareerMarket.jsx`: Career market overview showing compensation tiers and trending tech skills.
-- `Frontend/src/services/api.js`: Exports `jobApi` (jobs listing, single job lookup, company endpoints).
+- `Frontend/src/services/api.js`: Axios client with cache invalidation for `/jobs` and `/applications`.
 
 ---
 
 ## 5. Backend Files Involved
-- `Backend/src/routes/jobRoutes.js`: REST endpoints for jobs and companies.
-- `Backend/src/controllers/jobController.js`: Request handlers for job matching, job CRUD, and company management.
-- `Backend/src/services/jobService.js`: Business logic calculating job skill matches, querying companies, and managing job postings.
+- `Backend/src/routes/jobRoutes.js`: REST endpoints for jobs, matches, applications, and learning paths.
+- `Backend/src/routes/applicationRoutes.js`: REST endpoints mounted at `/api/applications`.
+- `Backend/src/controllers/jobController.js`: Request handlers for jobs, matches, and applications.
+- `Backend/src/services/jobService.js`: Business logic for prerequisite traversal, topological sorting, and application lifecycle.
+- `Backend/src/models/Job.js`: Mongoose schema for structured job requirements.
+- `Backend/src/models/JobApplication.js`: Mongoose schema for application tracking.
 - `Backend/src/models/Company.js`: Mongoose schema for employers.
-- `Backend/src/models/Job.js`: Mongoose schema for job listings.
-- `Backend/src/models/UserSkill.js`: Model queried to compare candidate skills.
-- `Backend/src/models/Skill.js`: Model populated for skill names and categories.
-- `Backend/src/seed/seedCatalog.js`: Seeds 10 companies and 20 job listings on boot.
+- `Backend/tests/jobPrerequisitesAndLearningPath.test.js`: 10 integration tests validating RBAC, DAG prerequisite traversal, blocked chains, Kahn sort, 409 duplicate blocks, and 400 closed job blocks.
 
 ---
 

@@ -104,9 +104,20 @@ const getTopicProgress = async (req, res, next) => {
 
 const completeTopic = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const { skillId, topicTitle, completed } = req.body;
+    const userId = req.user.id || req.user._id;
+    let { skillId, topicTitle, completed } = req.body || {};
     
+    // Support topic completion by topicId (used by Dashboard Command Center)
+    const topicIdParam = req.params?.topicId || req.body?.topicId;
+    if ((!skillId || !topicTitle) && topicIdParam) {
+      const Topic = require('../models/Topic');
+      const foundTopic = await Topic.findById(topicIdParam);
+      if (foundTopic) {
+        skillId = foundTopic.skillId;
+        topicTitle = foundTopic.title;
+      }
+    }
+
     if (!skillId || !topicTitle) {
       return res.status(400).json({
         success: false,
@@ -114,7 +125,7 @@ const completeTopic = async (req, res, next) => {
       });
     }
 
-    const progress = await learningService.completeTopic(userId, skillId, topicTitle, completed);
+    const progress = await learningService.completeTopic(userId, skillId, topicTitle, completed !== false);
     res.status(200).json({
       success: true,
       data: {

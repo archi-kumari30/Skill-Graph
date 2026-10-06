@@ -11,6 +11,11 @@ const Company = require('../models/Company');
 const Job = require('../models/Job');
 const LearningProgress = require('../models/LearningProgress');
 
+const dns = require('dns');
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (_) {}
+
 const seedDB = async () => {
   try {
     console.log('Connecting to database...');
@@ -78,6 +83,8 @@ const seedDB = async () => {
     console.log('Seeding skill relationships...');
     const relationships = [
       { sourceSkillId: skillMap['JavaScript'], targetSkillId: skillMap['React'], relationshipType: 'prerequisite', strength: 0.9 },
+      { sourceSkillId: skillMap['React'], targetSkillId: skillMap['TypeScript'], relationshipType: 'prerequisite', strength: 0.85 },
+      { sourceSkillId: skillMap['TypeScript'], targetSkillId: skillMap['Testing'], relationshipType: 'prerequisite', strength: 0.75 },
       { sourceSkillId: skillMap['JavaScript'], targetSkillId: skillMap['TypeScript'], relationshipType: 'related', strength: 0.8 },
       { sourceSkillId: skillMap['Node.js'], targetSkillId: skillMap['Express.js'], relationshipType: 'prerequisite', strength: 0.9 },
       { sourceSkillId: skillMap['React'], targetSkillId: skillMap['Next.js'], relationshipType: 'specialization', strength: 0.8 },
@@ -210,7 +217,8 @@ const seedDB = async () => {
       { name: 'Amazon (Sample)', description: 'E-commerce and cloud infrastructure', industry: 'Retail', website: 'https://amazon.com', location: 'Seattle, WA' },
       { name: 'Twitter (Sample)', description: 'Microblogging and social networking', industry: 'Social Media', website: 'https://x.com', location: 'San Francisco, CA' },
       { name: 'Airbnb (Sample)', description: 'Lodging and vacation home rental index', industry: 'Travel', website: 'https://airbnb.com', location: 'San Francisco, CA' },
-      { name: 'Uber (Sample)', description: 'Ride-sharing and delivery services platform', industry: 'Logistics', website: 'https://uber.com', location: 'San Francisco, CA' }
+      { name: 'Uber (Sample)', description: 'Ride-sharing and delivery services platform', industry: 'Logistics', website: 'https://uber.com', location: 'San Francisco, CA' },
+      { name: 'ABC Technologies', description: 'Innovative high-growth technology enterprise building scalable web and distributed systems', industry: 'Technology', website: 'https://abctechnologies.com', location: 'Bengaluru, India' }
     ];
     const seededCompanies = await Company.create(companiesToCreate);
     console.log(`Seeded ${seededCompanies.length} companies.`);
@@ -220,9 +228,25 @@ const seedDB = async () => {
       companyMap[c.name.split(' ')[0]] = c._id;
     });
 
-    // 8. Seed 20 Jobs (Sample Opportunities with detailed requirements)
-    console.log('Seeding 20 jobs...');
+    // 8. Seed 21 Jobs (Sample Opportunities with detailed requirements)
+    console.log('Seeding 21 jobs...');
     const jobsToCreate = [
+      {
+        companyId: companyMap['ABC'],
+        title: 'Frontend Developer',
+        description: 'Design and build world-class user interfaces using modern reactive technologies. Lead component architecture and ensure high accessibility and test coverage.',
+        location: 'Bengaluru, India',
+        employmentType: 'Full-time',
+        experienceLevel: 'Mid',
+        requirements: [
+          { skillId: skillMap['JavaScript'], requiredProficiency: 4, importance: 'required', requirementType: 'required' },
+          { skillId: skillMap['React'], requiredProficiency: 4, importance: 'required', requirementType: 'required' },
+          { skillId: skillMap['TypeScript'], requiredProficiency: 3, importance: 'important', requirementType: 'preferred' },
+          { skillId: skillMap['Testing'], requiredProficiency: 2, importance: 'nice_to_have', requirementType: 'optional' }
+        ],
+        source: 'Internal',
+        sourceUrl: 'https://abctechnologies.com/careers'
+      },
       {
         companyId: companyMap['Google'],
         title: 'Backend Engineer (Sample Job)',
@@ -567,6 +591,7 @@ const seedDB = async () => {
 
       // Demo Student Skills
       { userId: userMap['Demo Student'], skillId: skillMap['JavaScript'], proficiency: 3, yearsOfExperience: 2, source: 'self' },
+      { userId: userMap['Demo Student'], skillId: skillMap['React'], proficiency: 2, yearsOfExperience: 1, source: 'self' },
       { userId: userMap['Demo Student'], skillId: skillMap['HTML'], proficiency: 3, yearsOfExperience: 3, source: 'self' },
       { userId: userMap['Demo Student'], skillId: skillMap['CSS'], proficiency: 2, yearsOfExperience: 1, source: 'self' },
       { userId: userMap['Demo Student'], skillId: skillMap['Git'], proficiency: 2, yearsOfExperience: 1, source: 'self' }

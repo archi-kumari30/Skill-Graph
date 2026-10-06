@@ -17,7 +17,17 @@ const getCommandCenter = catchAsync(async (req, res, next) => {
   });
 });
 
+const getRecruiterDashboard = catchAsync(async (req, res, next) => {
+  const data = await dashboardService.getRecruiterDashboard(req.user._id, req.user.accountRole);
+  res.status(200).json({
+    success: true,
+    data
+  });
+});
+
 module.exports = {
   getSummary,
-  getCommandCenter
+  getCommandCenter,
+  getRecruiterDashboard
 };
+

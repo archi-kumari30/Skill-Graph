@@ -8,6 +8,8 @@ const LearningResource = require('../models/LearningResource');
 const Company = require('../models/Company');
 const Job = require('../models/Job');
 const Topic = require('../models/Topic');
+const User = require('../models/User');
+const UserSkill = require('../models/UserSkill');
 
 const runCatalogSeed = async () => {
   // 1. Seed 30 Skills (Idempotent)
@@ -59,9 +61,11 @@ const runCatalogSeed = async () => {
     skillMap[s.name] = skill._id;
   }
 
-  // 2. Seed 8 Skill Relationships (Idempotent)
+  // 2. Seed 10 Skill Relationships (Idempotent)
   const relationships = [
     { source: 'JavaScript', target: 'React', type: 'prerequisite', strength: 0.9 },
+    { source: 'React', target: 'TypeScript', type: 'prerequisite', strength: 0.85 },
+    { source: 'TypeScript', target: 'Testing', type: 'prerequisite', strength: 0.75 },
     { source: 'JavaScript', target: 'TypeScript', type: 'related', strength: 0.8 },
     { source: 'Node.js', target: 'Express.js', type: 'prerequisite', strength: 0.9 },
     { source: 'React', target: 'Next.js', type: 'specialization', strength: 0.8 },
@@ -242,7 +246,8 @@ const runCatalogSeed = async () => {
     { name: 'Amazon (Sample)', description: 'E-commerce and cloud infrastructure', industry: 'Retail', website: 'https://amazon.com', location: 'Seattle, WA' },
     { name: 'Twitter (Sample)', description: 'Microblogging and social networking', industry: 'Social Media', website: 'https://x.com', location: 'San Francisco, CA' },
     { name: 'Airbnb (Sample)', description: 'Lodging and vacation home rental index', industry: 'Travel', website: 'https://airbnb.com', location: 'San Francisco, CA' },
-    { name: 'Uber (Sample)', description: 'Ride-sharing and delivery services platform', industry: 'Logistics', website: 'https://uber.com', location: 'San Francisco, CA' }
+    { name: 'Uber (Sample)', description: 'Ride-sharing and delivery services platform', industry: 'Logistics', website: 'https://uber.com', location: 'San Francisco, CA' },
+    { name: 'ABC Technologies', description: 'Innovative high-growth technology enterprise building scalable web and distributed systems', industry: 'Technology', website: 'https://abctechnologies.com', location: 'Bengaluru, India' }
   ];
 
   const companyMap = {};
@@ -261,8 +266,24 @@ const runCatalogSeed = async () => {
     companyMap[c.name.split(' ')[0]] = company._id;
   }
 
-  // 6. Seed 20 Jobs (Idempotent)
+  // 6. Seed 21 Jobs (Idempotent)
   const jobsToCreate = [
+    {
+      companyNameKey: 'ABC',
+      title: 'Frontend Developer',
+      description: 'Design and build world-class user interfaces using modern reactive technologies. Lead component architecture and ensure high accessibility and test coverage.',
+      location: 'Bengaluru, India',
+      employmentType: 'Full-time',
+      experienceLevel: 'Mid',
+      requirements: [
+        { skillName: 'JavaScript', requiredProficiency: 4, importance: 'required', requirementType: 'required' },
+        { skillName: 'React', requiredProficiency: 4, importance: 'required', requirementType: 'required' },
+        { skillName: 'TypeScript', requiredProficiency: 3, importance: 'important', requirementType: 'preferred' },
+        { skillName: 'Testing', requiredProficiency: 2, importance: 'nice_to_have', requirementType: 'optional' }
+      ],
+      source: 'Internal',
+      sourceUrl: 'https://abctechnologies.com/careers'
+    },
     {
       companyNameKey: 'Google',
       title: 'Backend Engineer (Sample Job)',
@@ -754,6 +775,24 @@ const runCatalogSeed = async () => {
         { title: 'Remote Repositories & Collaboration', slug: 'remote-github', order: 3, summary: 'Remote tracking branches, git fetch, pull, and push' },
         { title: 'Rebasing & Conflict Resolution', slug: 'rebase-conflict-resolution', order: 4, summary: 'Interactive rebase, squash commits, and merge conflicts' }
       ]
+    },
+    {
+      skillName: 'TypeScript',
+      topics: [
+        { title: 'TypeScript Basics & Type Annotations', slug: 'ts-basics-annotations', order: 1, summary: 'Type inference, explicit typing, primitive types, and any/unknown' },
+        { title: 'Interfaces, Types & Enums', slug: 'interfaces-types-enums', order: 2, summary: 'Custom type aliases, interface extension, optional props, and enums' },
+        { title: 'Generics & Advanced Types', slug: 'generics-advanced-types', order: 3, summary: 'Generic functions, constraints, keyof, Record, and utility types' },
+        { title: 'TypeScript with React Components', slug: 'ts-react-props', order: 4, summary: 'Typing component props, event handlers, and custom hooks' }
+      ]
+    },
+    {
+      skillName: 'Testing',
+      topics: [
+        { title: 'Unit Testing Fundamentals & Jest', slug: 'unit-testing-jest', order: 1, summary: 'Test suites, expect assertions, test runners, and test-driven development' },
+        { title: 'React Testing Library & UI Tests', slug: 'react-testing-library', order: 2, summary: 'Render components, userEvent interactions, and screen queries' },
+        { title: 'Mocking APIs & Async Operations', slug: 'mocking-async-tests', order: 3, summary: 'Mock functions, spies, network mocks, and async/await testing' },
+        { title: 'End-to-End Testing & Integration', slug: 'e2e-testing-basics', order: 4, summary: 'Integration test workflows, coverage reports, and CI regression runs' }
+      ]
     }
   ];
 
@@ -780,10 +819,127 @@ const runCatalogSeed = async () => {
     }
   }
 
+  // 8. Seed Default Accounts (Admin, Recruiter, Student, Manager, Demo Student - Idempotent)
+  const defaultUsers = [
+    {
+      name: 'System Admin',
+      email: 'admin@skillgraph.com',
+      password: 'adminpassword',
+      accountRole: 'admin',
+      department: 'IT'
+    },
+    {
+      name: 'Tech Recruiter',
+      email: 'recruiter@skillgraph.com',
+      password: 'recruiterpassword',
+      accountRole: 'recruiter',
+      company: 'TechCorp Innovations',
+      department: 'Talent Acquisition',
+      phone: '+1 555-0199'
+    },
+    {
+      name: 'Alex Student',
+      email: 'student@skillgraph.com',
+      password: 'studentpassword',
+      accountRole: 'student',
+      department: 'Engineering',
+      branch: 'Computer Science',
+      yearOfStudy: '3rd Year',
+      college: 'National Institute of Technology',
+      targetRoleId: roleMap['Frontend Developer']
+    },
+    {
+      name: 'Engineering Manager',
+      email: 'manager@skillgraph.com',
+      password: 'managerpassword',
+      accountRole: 'manager',
+      department: 'Engineering'
+    },
+    {
+      name: 'Demo Student',
+      email: 'demo.student@skillgraph.com',
+      password: 'SkillGraph@123',
+      accountRole: 'student',
+      department: 'Engineering',
+      branch: 'Computer Science',
+      yearOfStudy: '3rd Year',
+      college: 'National Institute of Technology',
+      targetRoleId: roleMap['Frontend Developer']
+    }
+  ];
+
+  let recruiterUserId = null;
+
+  for (const u of defaultUsers) {
+    let existingUser = await User.findOne({ email: u.email });
+    if (!existingUser) {
+      existingUser = await User.create(u);
+      console.log(`Created default user: ${u.email} (${u.accountRole})`);
+    } else {
+      existingUser.name = u.name;
+      existingUser.accountRole = u.accountRole;
+      if (u.company) existingUser.company = u.company;
+      if (u.phone) existingUser.phone = u.phone;
+      if (u.department) existingUser.department = u.department;
+      if (u.branch) existingUser.branch = u.branch;
+      if (u.college) existingUser.college = u.college;
+      if (u.yearOfStudy) existingUser.yearOfStudy = u.yearOfStudy;
+      if (u.targetRoleId) existingUser.targetRoleId = u.targetRoleId;
+      // Rehash password if needed by setting and saving
+      existingUser.password = u.password;
+      await existingUser.save();
+    }
+
+    if (u.email === 'recruiter@skillgraph.com') {
+      recruiterUserId = existingUser._id;
+    }
+
+    // Ensure student skills are seeded for student accounts
+    if (u.email === 'demo.student@skillgraph.com' || u.email === 'student@skillgraph.com') {
+      const studentSkills = [
+        { skillName: 'JavaScript', proficiency: 3, yearsOfExperience: 2 },
+        { skillName: 'React', proficiency: 2, yearsOfExperience: 1 },
+        { skillName: 'HTML', proficiency: 3, yearsOfExperience: 2 },
+        { skillName: 'CSS', proficiency: 2, yearsOfExperience: 1 },
+        { skillName: 'Git', proficiency: 2, yearsOfExperience: 1 }
+      ];
+
+      for (const ss of studentSkills) {
+        const sId = skillMap[ss.skillName];
+        if (sId) {
+          await UserSkill.findOneAndUpdate(
+            { userId: existingUser._id, skillId: sId },
+            {
+              proficiency: ss.proficiency,
+              yearsOfExperience: ss.yearsOfExperience,
+              source: 'self'
+            },
+            { upsert: true, new: true }
+          );
+        }
+      }
+      console.log(`Synchronized skills for ${u.email}`);
+    }
+  }
+
+  // Assign recruiter to catalog jobs without one
+  if (recruiterUserId) {
+    await Job.updateMany(
+      { $or: [{ recruiterId: { $exists: false } }, { recruiterId: null }] },
+      { $set: { recruiterId: recruiterUserId } }
+    );
+    console.log('Linked catalog jobs to default recruiter');
+  }
+
   console.log('Safe database seeding completed successfully! 🎉');
 };
 
 if (require.main === module) {
+  const dns = require('dns');
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch (_) {}
+
   const run = async () => {
     try {
       console.log('Connecting to database...');

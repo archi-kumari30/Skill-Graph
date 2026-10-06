@@ -177,6 +177,29 @@ const completeTopic = async (userId, skillId, topicTitle, completed) => {
     }
   }
 
+  // Synchronize topic completion into UserSkill proficiency
+  try {
+    const UserSkill = require('../models/UserSkill');
+    const userTopicsCompleted = await UserTopicProgress.countDocuments({ userId, skillId });
+    if (userTopicsCompleted > 0) {
+      let existingUserSkill = await UserSkill.findOne({ userId, skillId });
+      const calculatedProf = Math.min(5, Math.max(1, Math.min(Math.ceil(userTopicsCompleted / 2) + 1, 4)));
+      if (!existingUserSkill) {
+        await UserSkill.create({
+          userId,
+          skillId,
+          proficiency: Math.min(3, Math.max(1, userTopicsCompleted)),
+          source: 'learning_progress'
+        });
+      } else if (existingUserSkill.proficiency < calculatedProf) {
+        existingUserSkill.proficiency = calculatedProf;
+        await existingUserSkill.save();
+      }
+    }
+  } catch (err) {
+    console.warn('Could not update user skill proficiency upon topic completion:', err.message);
+  }
+
   return progress;
 };
 

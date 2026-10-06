@@ -21,9 +21,11 @@ const dailyActivitySchema = new mongoose.Schema(
         'assessment_attempted',
         'project_added',
         'practice_session',
-        'skill_added'
+        'skill_added',
+        'interview_prep'
       ],
       required: [true, 'Activity type is required']
+
     },
     title: {
       type: String,

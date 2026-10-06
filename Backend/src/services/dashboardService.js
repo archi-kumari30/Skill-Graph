@@ -6,13 +6,49 @@ const Project = require('../models/Project');
 const DailyActivity = require('../models/DailyActivity');
 const Topic = require('../models/Topic');
 const UserTopicProgress = require('../models/UserTopicProgress');
-const teamService = require('./teamService');
+const Job = require('../models/Job');
+const JobApplication = require('../models/JobApplication');
 const skillGapService = require('./skillGapService');
 
 const getDashboardSummary = async () => {
   const totalUsers = await User.countDocuments();
   const totalSkills = await Skill.countDocuments();
   const totalRoles = await Role.countDocuments();
+  const totalJobs = await Job.countDocuments();
+  const activeJobs = await Job.countDocuments({ status: { $in: ['Active', 'active'] } });
+  const totalApplications = await JobApplication.countDocuments();
+
+  // Top required skills across all job openings
+  const topRequiredSkills = await Job.aggregate([
+    { $unwind: '$requirements' },
+    {
+      $group: {
+        _id: '$requirements.skillId',
+        count: { $sum: 1 },
+        avgRequiredProficiency: { $avg: '$requirements.requiredProficiency' }
+      }
+    },
+    { $sort: { count: -1 } },
+    { $limit: 8 },
+    {
+      $lookup: {
+        from: 'skills',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'skill'
+      }
+    },
+    { $unwind: '$skill' },
+    {
+      $project: {
+        skillId: '$_id',
+        name: '$skill.name',
+        category: '$skill.category',
+        count: 1,
+        avgRequiredProficiency: { $round: ['$avgRequiredProficiency', 1] }
+      }
+    }
+  ]);
 
   // Calculate average proficiency across all UserSkills in the system
   const userSkills = await UserSkill.find();
@@ -51,9 +87,15 @@ const getDashboardSummary = async () => {
     totalUsers,
     totalSkills,
     totalRoles,
+    totalJobs,
+    activeJobs,
+    totalApplications,
+    topRequiredSkills,
+    mostRequiredSkills: topRequiredSkills,
     averageSkillProficiency,
     mostCommonSkills: teamAnalysis.mostCommonSkills,
     topSkillGaps: teamAnalysis.teamSkillGaps,
+    mostCommonSkillGaps: teamAnalysis.teamSkillGaps,
     roleReadinessSummary: {
       averageReadinessScore: averageRoleReadiness,
       rolesAnalyzed: roles.length,
@@ -152,8 +194,8 @@ const getUserCommandCenter = async (userId) => {
         .slice(0, 5);
 
       // Find next incomplete topics
-      const completedProgress = await UserTopicProgress.find({ userId }).select('topicId').lean();
-      const completedTopicIds = new Set(completedProgress.map(p => p.topicId.toString()));
+      const completedProgress = await UserTopicProgress.find({ userId }).select('topicTitle').lean();
+      const completedTopicTitles = new Set(completedProgress.map(p => p.topicTitle).filter(Boolean));
 
       // Target role skills
       const roleSkillIds = gapData.skills.map(s => s.skill.id);
@@ -163,7 +205,7 @@ const getUserCommandCenter = async (userId) => {
         .lean();
 
       continueTopics = availableTopics
-        .filter(t => !completedTopicIds.has(t._id.toString()))
+        .filter(t => !completedTopicTitles.has(t.title))
         .slice(0, 4);
 
     } catch (err) {
@@ -174,8 +216,8 @@ const getUserCommandCenter = async (userId) => {
   // If no continue topics found from target role, take from any skill the user has logged
   if (continueTopics.length === 0 && userSkills.length > 0) {
     const userSkillIds = userSkills.filter(us => us.skillId).map(us => us.skillId._id);
-    const completedProgress = await UserTopicProgress.find({ userId }).select('topicId').lean();
-    const completedTopicIds = new Set(completedProgress.map(p => p.topicId.toString()));
+    const completedProgress = await UserTopicProgress.find({ userId }).select('topicTitle').lean();
+    const completedTopicTitles = new Set(completedProgress.map(p => p.topicTitle).filter(Boolean));
 
     const fallbackTopics = await Topic.find({ skillId: { $in: userSkillIds } })
       .populate('skillId', 'name category')
@@ -183,16 +225,47 @@ const getUserCommandCenter = async (userId) => {
       .lean();
 
     continueTopics = fallbackTopics
-      .filter(t => !completedTopicIds.has(t._id.toString()))
+      .filter(t => !completedTopicTitles.has(t.title))
       .slice(0, 4);
   }
+
+  // Compute top job matches for user from Job collection
+  let topJobMatches = [];
+  try {
+    const jobService = require('./jobService');
+    const allMatches = await jobService.getJobMatches(userId);
+    topJobMatches = allMatches.slice(0, 4).map(m => ({
+      jobId: m.jobId,
+      title: m.title,
+      company: m.company?.name || 'Company',
+      matchScore: m.matchScore,
+      location: m.location,
+      workMode: m.workMode || 'Hybrid',
+      salary: m.salary || m.salaryRange || ''
+    }));
+  } catch (err) {
+    console.warn('Could not compute job matches for command center:', err.message);
+  }
+
+  // Compute real application metrics
+  const userApps = await JobApplication.find({ userId });
+  const applicationStats = {
+    total: userApps.length,
+    applied: userApps.filter(a => a.status === 'applied').length,
+    interview: userApps.filter(a => a.status === 'interview' || a.status === 'interviewing').length,
+    offers: userApps.filter(a => a.status === 'offered').length,
+    shortlisted: userApps.filter(a => a.status === 'shortlisted').length,
+    rejected: userApps.filter(a => a.status === 'rejected').length
+  };
 
   // Quick stats summary
   const quickStats = {
     totalSkills: userSkills.length,
     verifiedSkills: verifiedCount,
+    verifiedSkillsCount: verifiedCount,
     verificationRate: userSkills.length > 0 ? Math.round((verifiedCount / userSkills.length) * 100) : 0,
     totalProjects: projects.length,
+    streak: streak,
     streakDays: streak,
     hoursThisWeek: parseFloat((minutesThisWeek / 60).toFixed(1)),
     readinessScore: readiness ? readiness.score : 0,
@@ -217,12 +290,85 @@ const getUserCommandCenter = async (userId) => {
     readiness,
     topGaps,
     continueTopics,
+    jobMatches: topJobMatches,
+    applicationStats,
     recentActivity: allActivities.slice(0, 8),
     recentProjects: projects.slice(0, 4)
   };
 };
 
+const getRecruiterDashboard = async (userId, userRole) => {
+  let jobFilter = { recruiterId: userId };
+  if (userRole === 'admin') {
+    const myCount = await Job.countDocuments({ recruiterId: userId });
+    if (myCount === 0) {
+      jobFilter = {};
+    }
+  }
+
+  const jobs = await Job.find(jobFilter).populate('companyId', 'name logo').sort({ createdAt: -1 }).lean();
+  const jobIds = jobs.map(j => j._id);
+
+  const applications = await JobApplication.find({ jobId: { $in: jobIds } })
+    .populate('jobId', 'title location department status')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const activeJobs = jobs.filter(j => j.status === 'Active' || j.status === 'active');
+
+  const pipeline = {
+    applied: 0,
+    reviewing: 0,
+    shortlisted: 0,
+    interview: 0,
+    offered: 0,
+    rejected: 0
+  };
+
+  const applicantsByJob = {};
+  applications.forEach(a => {
+    const jId = a.jobId?._id?.toString() || a.jobId?.toString();
+    if (jId) applicantsByJob[jId] = (applicantsByJob[jId] || 0) + 1;
+    const st = a.status || 'applied';
+    if (pipeline[st] !== undefined) {
+      pipeline[st]++;
+    } else {
+      pipeline.applied++;
+    }
+  });
+
+  const jobsWithCount = jobs.map(j => ({
+    ...j,
+    applicantsCount: applicantsByJob[j._id.toString()] || 0
+  }));
+
+  const recentApplications = applications.slice(0, 8).map(a => ({
+    _id: a._id,
+    fullName: a.fullName || 'Candidate',
+    email: a.email,
+    phone: a.phone || '',
+    jobTitle: a.jobId?.title || 'Position',
+    jobId: a.jobId?._id || a.jobId,
+    status: a.status,
+    matchScore: a.matchScore,
+    resumeUrl: a.resumeUrl,
+    portfolioUrl: a.portfolioUrl,
+    createdAt: a.createdAt
+  }));
+
+  return {
+    totalJobs: jobs.length,
+    activeJobsCount: activeJobs.length,
+    totalApplicants: applications.length,
+    pipeline,
+    recentApplications,
+    myJobs: jobsWithCount
+  };
+};
+
 module.exports = {
   getDashboardSummary,
-  getUserCommandCenter
+  getUserCommandCenter,
+  getRecruiterDashboard
 };
+

@@ -22,8 +22,11 @@ The Learning Resources, Topic Progress & Recommendation Engine module powers per
   - Records self-reported progress percentage (`0` to `100`), `startedAt` timestamp, and `completedAt` timestamp.
 - **Granular Topic Checklists (`UserTopicProgress` model)**:
   - Tracks student completion of fine-grained sub-topics within a skill (e.g., within "HTML": `html-basics`, `semantic-html`, `forms-inputs`, `canvas-multimedia`).
-  - Toggle Endpoint (`POST /api/learning/topics/toggle`): Dynamically switches topic completion state (`isCompleted: true/false`).
-  - Directly influences the mathematical readiness formula in `scoring.js` by providing the topic completion multiplier.
+  - Toggle Endpoint (`POST /api/learning/topics/toggle` and `POST /api/learning/topics/complete`): Dynamically switches topic completion state. Completing topics updates user skill proficiency in `UserSkill`, elevating readiness scores in real time.
+- **Topological Guided Career Learning Paths (`JobLearningPath.jsx`)**:
+  - Modeled after the Naukri Code 360 reference; generates a personalized path for any job vacancy.
+  - Groups curriculum into chapters ordered topologically (Kahn's DAG sort) based on prerequisite dependencies.
+  - Each chapter displays skill importance, prerequisite warnings, progress percentage, topic difficulty tags, and curated learning resources.
 - **Deterministic Recommendation Engine (`recommendationService.js`)**:
   - Identifies skills deficient in the user's active `targetRoleId`.
   - **Prioritization Scoring Formula (0 to 100 Scale)**:

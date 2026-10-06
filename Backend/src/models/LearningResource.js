@@ -21,6 +21,21 @@ const learningResourceSchema = new mongoose.Schema(
       required: [true, 'URL is required'],
       trim: true
     },
+    provider: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    type: {
+      type: String,
+      default: 'course',
+      enum: ['article', 'video', 'course', 'documentation', 'practice', 'Article', 'Video', 'Course', 'Documentation', 'Practice']
+    },
+    topicTitle: {
+      type: String,
+      default: '',
+      trim: true
+    },
     difficulty: {
       type: String,
       required: [true, 'Difficulty level is required'],
