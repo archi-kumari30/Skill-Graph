@@ -42,15 +42,51 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
-// 2. Dynamic CORS setup supporting multiple local development ports (Vite 5173, 5174, 5175, etc.)
-// while strictly maintaining credentials/cookie authentication and production domain validation
-const configuredOrigins = [
+// 2. Dynamic CORS setup supporting production, Vercel deployments, and local development ports
+// Parse multiple possible environment variables: CLIENT_URL, CORS_ORIGIN, CORS_ORIGINS
+const rawConfiguredOrigins = [
   config.clientUrl,
   process.env.CLIENT_URL,
+  process.env.CORS_ORIGIN,
+  process.env.CORS_ORIGINS,
+  'https://skill-graph-cyan.vercel.app',
   'https://skill-graph-noym.onrender.com'
-].filter(Boolean);
+];
+
+// Helper to normalize and flatten origins (split comma-separated strings, trim whitespace and trailing slashes)
+const parseOrigins = (sources) => {
+  const set = new Set();
+  sources.filter(Boolean).forEach((entry) => {
+    entry.split(',').forEach((url) => {
+      const trimmed = url.trim().replace(/\/+$/, '');
+      if (trimmed) {
+        set.add(trimmed);
+      }
+    });
+  });
+  return set;
+};
+
+const allowedOriginsSet = parseOrigins(rawConfiguredOrigins);
 
 const localOriginRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const vercelPreviewRegex = /^https:\/\/skill-graph.*\.vercel\.app$/;
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const cleanOrigin = origin.trim().replace(/\/+$/, '');
+
+  // Exact match from allowed set (includes https://skill-graph-cyan.vercel.app by default)
+  if (allowedOriginsSet.has(cleanOrigin)) return true;
+
+  // Localhost / 127.0.0.1 in development or test, or if testing against API
+  if (localOriginRegex.test(cleanOrigin)) return true;
+
+  // Any Vercel deployment under skill-graph (e.g. preview branches)
+  if (vercelPreviewRegex.test(cleanOrigin)) return true;
+
+  return false;
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -59,13 +95,7 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // In development or test, allow any local port (e.g. localhost:5173, 5174, 5175, etc.)
-    if (config.nodeEnv !== 'production' && localOriginRegex.test(origin)) {
-      return callback(null, true);
-    }
-
-    // Match against configured production client URLs
-    if (configuredOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
 

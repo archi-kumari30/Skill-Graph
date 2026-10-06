@@ -7,7 +7,7 @@ const COOKIE_NAME = 'skillgraph_rf';
 const getCookieOptions = () => ({
   httpOnly: true,
   secure: config.nodeEnv === 'production',
-  sameSite: config.nodeEnv === 'production' ? 'strict' : 'lax',
+  sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 });
@@ -62,7 +62,7 @@ const logout = catchAsync(async (req, res, next) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: config.nodeEnv === 'production',
-    sameSite: config.nodeEnv === 'production' ? 'strict' : 'lax',
+    sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
     path: '/'
   });
   res.status(200).json({
@@ -87,7 +87,7 @@ const resetPassword = catchAsync(async (req, res, next) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: config.nodeEnv === 'production',
-    sameSite: config.nodeEnv === 'production' ? 'strict' : 'lax',
+    sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
     path: '/'
   });
   res.status(200).json(result);

@@ -12,7 +12,7 @@ const config = {
   refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || 'super_secret_skill_graph_refresh_key_67890',
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
   cookieSecret: process.env.COOKIE_SECRET || 'super_secret_cookie_signing_key_13579',
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  clientUrl: process.env.CLIENT_URL || process.env.CORS_ORIGIN || 'http://localhost:5173',
   nodeEnv: process.env.NODE_ENV || 'development',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
