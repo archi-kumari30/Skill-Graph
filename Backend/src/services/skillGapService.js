@@ -21,7 +21,13 @@ const calculateGap = async (userId, roleId) => {
   const { getDriver } = require('../config/cognodb');
   if (process.env.USE_GRAPH_DB === 'true' && getDriver && getDriver()) {
     try {
-      return await graphService.getSkillGaps(userId, roleId);
+      const graphTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('CognoDB query timeout after 2500ms')), 2500)
+      );
+      return await Promise.race([
+        graphService.getSkillGaps(userId, roleId),
+        graphTimeout
+      ]);
     } catch (err) {
       console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for skill gaps:', err.message);
     }

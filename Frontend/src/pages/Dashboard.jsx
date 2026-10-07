@@ -40,7 +40,7 @@ const Dashboard = () => {
       setLoading(true);
       setError('');
       const res = await api.get('/dashboard/command-center');
-      setCommandData(res?.data?.data || res?.data);
+      setCommandData(res?.data?.data || res?.data || res);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to load Command Center data');
     } finally {
@@ -418,7 +418,7 @@ const Dashboard = () => {
                         </span>
                       </div>
                       <p className="text-[11px] text-zinc-500 font-medium">
-                        {jobMatch.company?.name || jobMatch.companyName || 'Company'} &bull; {jobMatch.location || 'Remote'}
+                        {(typeof jobMatch.company === 'string' ? jobMatch.company : jobMatch.company?.name) || jobMatch.companyName || 'Company'} &bull; {jobMatch.location || 'Remote'}
                       </p>
                     </div>
 

@@ -99,7 +99,7 @@ const Login = () => {
     setLoading(true);
     try {
       const loggedUser = await login(email.trim().toLowerCase(), password);
-      const userRole = loggedUser?.accountRole;
+      const userRole = loggedUser?.accountRole || loggedUser?.role;
 
       // Smart redirection based on role
       if (userRole === 'admin') {

@@ -202,7 +202,9 @@ api.interceptors.response.use(
           localStorage.removeItem('skillgraph_token');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          window.location.href = '/login?expired=true';
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+            window.location.href = '/login?expired=true';
+          }
         }
 
         return Promise.reject(new Error('Session expired. Please log in again.'));
@@ -218,11 +220,32 @@ api.interceptors.response.use(
       localStorage.removeItem('skillgraph_token');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login?expired=true';
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login?expired=true';
+      }
     }
 
     return Promise.reject(new Error(message));
   }
 );
+
+// In-flight GET promise deduplication to prevent simultaneous identical requests
+const originalGet = api.get.bind(api);
+const inFlightMap = new Map();
+
+api.get = (url, config = {}) => {
+  if (config.skipCache) {
+    return originalGet(url, config);
+  }
+  const cacheKey = `${url}_${JSON.stringify(config.params || {})}`;
+  if (inFlightMap.has(cacheKey)) {
+    return inFlightMap.get(cacheKey);
+  }
+  const promise = originalGet(url, config).finally(() => {
+    inFlightMap.delete(cacheKey);
+  });
+  inFlightMap.set(cacheKey, promise);
+  return promise;
+};
 
 export default api;

@@ -3,6 +3,26 @@ import api from '../services/api';
 
 const AuthContext = createContext(null);
 
+const isTokenExpired = (jwt) => {
+  if (!jwt || typeof jwt !== 'string') return true;
+  try {
+    const parts = jwt.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.exp ? payload.exp * 1000 < Date.now() : false;
+  } catch {
+    return false;
+  }
+};
+
+const extractAuthPayload = (response) => {
+  if (!response) return {};
+  const payload = response.data?.data || response.data || response;
+  const user = payload.user || response.user || (payload.role ? payload : null);
+  const token = payload.accessToken || payload.token || response.accessToken || response.token;
+  return { user, token };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -13,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       const storedToken = localStorage.getItem('skillgraph_token') || localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
-      if (storedToken && storedUser) {
+      if (storedToken && storedUser && !isTokenExpired(storedToken)) {
         try {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
@@ -24,21 +44,30 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('user');
         }
       } else {
-        // Attempt silent cookie recovery if token is absent
+        // Clear stale expired tokens
+        if (storedToken && isTokenExpired(storedToken)) {
+          localStorage.removeItem('skillgraph_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        // Attempt silent cookie recovery if token is absent or expired
         try {
           const res = await api.post('/auth/refresh');
-          const resData = res.data?.data || res.data;
-          const refreshedToken = resData?.accessToken || resData?.token;
-          const refreshedUser = resData?.user;
+          const { user: refreshedUser, token: refreshedToken } = extractAuthPayload(res);
           if (refreshedToken && refreshedUser) {
             localStorage.setItem('skillgraph_token', refreshedToken);
             localStorage.setItem('token', refreshedToken);
             localStorage.setItem('user', JSON.stringify(refreshedUser));
             setToken(refreshedToken);
             setUser(refreshedUser);
+          } else {
+            setToken(null);
+            setUser(null);
           }
         } catch (e) {
           // No active session cookie; continue as guest
+          setToken(null);
+          setUser(null);
         }
       }
       setLoading(false);
@@ -49,9 +78,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    const resData = response.data?.data || response.data;
-    const loggedUser = resData?.user || response.user;
-    const loggedToken = resData?.accessToken || resData?.token || response.token;
+    const { user: loggedUser, token: loggedToken } = extractAuthPayload(response);
 
     if (loggedToken) {
       localStorage.setItem('skillgraph_token', loggedToken);
@@ -66,9 +93,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     const response = await api.post('/auth/register', userData);
-    const resData = response.data?.data || response.data;
-    const registeredUser = resData?.user || response.user;
-    const registeredToken = resData?.accessToken || resData?.token || response.token;
+    const { user: registeredUser, token: registeredToken } = extractAuthPayload(response);
 
     if (registeredToken) {
       localStorage.setItem('skillgraph_token', registeredToken);

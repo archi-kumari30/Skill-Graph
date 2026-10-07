@@ -237,7 +237,8 @@ const getUserCommandCenter = async (userId) => {
     topJobMatches = allMatches.slice(0, 4).map(m => ({
       jobId: m.jobId,
       title: m.title,
-      company: m.company?.name || 'Company',
+      company: m.company?.name || (typeof m.company === 'string' ? m.company : 'Company'),
+      companyName: m.company?.name || (typeof m.company === 'string' ? m.company : 'Company'),
       matchScore: m.matchScore,
       location: m.location,
       workMode: m.workMode || 'Hybrid',
@@ -291,6 +292,7 @@ const getUserCommandCenter = async (userId) => {
     topGaps,
     continueTopics,
     jobMatches: topJobMatches,
+    topMatches: topJobMatches,
     applicationStats,
     recentActivity: allActivities.slice(0, 8),
     recentProjects: projects.slice(0, 4)

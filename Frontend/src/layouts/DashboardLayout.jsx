@@ -52,8 +52,9 @@ const DashboardLayout = ({ children }) => {
       if (!isStudent) return;
       try {
         const res = await api.get('/dashboard/command-center');
-        if (isMounted && res?.data) {
-          setCommandData(res.data?.data || res.data);
+        if (isMounted && res) {
+          const data = res.data?.data || res.data || res;
+          setCommandData(data);
         }
       } catch (err) {
         // Silently fail if network hiccup
@@ -61,7 +62,7 @@ const DashboardLayout = ({ children }) => {
     };
     fetchQuickSummary();
     return () => { isMounted = false; };
-  }, [location.pathname, isStudent]);
+  }, [isStudent]);
 
   const handleLogout = () => {
     logout();

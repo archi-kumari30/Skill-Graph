@@ -58,7 +58,7 @@ const PrivateRoute = ({ children }) => {
 
 // 2. Public Route Guard (Redirects logged-in users away from auth forms)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
@@ -68,7 +68,12 @@ const PublicRoute = ({ children }) => {
     );
   }
 
-  return !isAuthenticated ? children : <Navigate to="/dashboard" replace />;
+  if (!isAuthenticated) return children;
+
+  const userRole = user?.accountRole || user?.role;
+  if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
+  if (userRole === 'recruiter' || userRole === 'manager') return <Navigate to="/recruiter/dashboard" replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 // 3. Manager/Admin Role Guard

@@ -32,9 +32,10 @@ const NotificationCenter = () => {
     try {
       setLoading(true);
       const res = await api.get('/notifications?limit=20');
-      if (res?.data?.data) {
-        setNotifications(res.data.data.notifications || []);
-        setUnreadCount(res.data.data.unreadCount || 0);
+      const payload = res?.data?.data || res?.data || res;
+      if (payload) {
+        setNotifications(payload.notifications || (Array.isArray(payload) ? payload : []));
+        setUnreadCount(payload.unreadCount ?? 0);
       }
     } catch (err) {
       // Graceful error handling
