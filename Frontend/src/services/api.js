@@ -9,7 +9,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true
+  withCredentials: true,
+  timeout: 15000 // 15s sensible network request timeout
 });
 
 const cache = new Map();
@@ -167,11 +168,11 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Attempt silent token refresh via HTTP-only cookie
+        // Attempt silent token refresh via HTTP-only cookie with bounded timeout
         const refreshResponse = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
           {},
-          { withCredentials: true }
+          { withCredentials: true, timeout: 6000 }
         );
 
         const newAccessToken =

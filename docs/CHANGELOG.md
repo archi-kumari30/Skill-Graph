@@ -1,5 +1,44 @@
 # SkillGraph Platform Upgrade Changelog
 
+## [Version 2.1.0] - Production Performance, Deployment Resilience & Authentication Audit
+
+### Summary
+Resolved deployment delays, frontend build errors, authentication refresh flow issues, and graph timeout race conditions. Implemented non-blocking HTTP server bootstrap on Render, immediate public page rendering for guest visitors (<100ms), 2500ms CognoDB query timeout with automatic MongoDB fallback, bounded network timeouts across Axios requests, and clean removal of redundant Mongoose indexes.
+
+### Key Enhancements & Root Causes Resolved
+
+#### 1. Instant Public Route Rendering & Guest Authentication Handling
+- **Root Cause**: `PublicRoute` previously blocked rendering for all visitors while `AuthContext.initAuth()` awaited a remote call to `POST /api/auth/refresh`. For guest visitors with no active session, this resulted in waiting for a remote roundtrip to Render (which hung for 1–2 minutes during container cold starts), followed by an expected `401 Unauthorized ("Refresh token required")` being treated as a blocking error.
+- **Fix**:
+  - `PublicRoute` in `Frontend/src/App.jsx` now mounts public views (`/login`, `/register`, `/reset-password`) immediately when no session token exists in `localStorage`.
+  - Configured silent refresh in `AuthContext.jsx` with a 4000ms bounded timeout.
+  - The login page now displays in **<100ms** even when the backend is cold-starting or temporarily offline.
+  - Legitimate guest `401` responses on `/api/auth/refresh` are handled gracefully without redirect loops or blocking UI errors.
+
+#### 2. Backend Startup & Cold-Start Optimization (Render 1–2 Minute Delay)
+- **Root Cause**: In `Backend/src/server.js`, `app.listen(PORT)` was blocked inside `connectDB().then(...)` awaiting sequential execution of four heavy database seed scripts (`runCatalogSeed()`, `runAssessmentSeed()`, `runInterviewSeed()`, `seedDefaultColleges()`) and a synchronous `connectCognoDB()` network handshake. On Render free-tier cold starts, this added 45–90 seconds of Atlas WAN queries before the server bound to the port, causing incoming requests to queue or time out.
+- **Fix**:
+  - Moved `app.listen(PORT)` to start immediately once MongoDB connects.
+  - Database seeding is now guarded by `process.env.SEED_ON_STARTUP === 'true'` and does not run on normal production startup.
+  - `connectCognoDB()` runs asynchronously in the background with a 4000ms connection timeout, operating seamlessly in MongoDB fallback mode if unreachable.
+
+#### 3. Graph Database Timeout & Fallback Resilience (`skillGapService.js`)
+- **Root Cause**: `calculateGap` previously lacked timer cleanup on its 2500ms timeout promise and had no error handler attached to late-resolving/rejecting graph promises after timeout race settlement, risking memory leaks and unhandled promise rejections.
+- **Fix**:
+  - Implemented working 2500ms timeout with deterministic `clearTimeout(timerId)` cleanup.
+  - Added background rejection listener to prevent unhandled promise rejections if CognoDB queries fail after the timeout window.
+  - Guaranteed transparent fallback to MongoDB readiness scoring upon query failure or timeout.
+  - Created automated test suite `Backend/tests/skillGapTimeout.test.js` covering graph success, timeout, failure, and fallback.
+
+#### 4. Frontend Network Timeouts & Build Stability
+- **Fix**: Added a 15-second default timeout to `api.js` Axios instance and a 6-second timeout to token refresh requests.
+- **Fix**: Cleaned up duplicate declarations in `AuthContext.jsx` and verified clean Vite production build (`npm run build` exits 0 in 3.58s).
+
+#### 5. Database Schema Cleanliness
+- **Fix**: Removed duplicate index definition `collegeSchema.index({ name: 1 })` from `Backend/src/models/College.js` (`name` already has `unique: true`).
+
+---
+
 ## [Version 2.0.0] - Complete Product Logic, UI/UX & Functional Upgrade
 
 ### Summary

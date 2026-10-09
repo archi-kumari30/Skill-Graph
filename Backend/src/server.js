@@ -18,27 +18,8 @@ if (validation.warnings.length > 0) {
   validation.warnings.forEach(w => console.warn(`[CONFIG WARNING] ${w}`));
 }
 
-// Connect to Database first, then start the server
+// Connect to Database first, then start the server immediately
 connectDB().then(async () => {
-  try {
-    console.log('Running safe catalog database seeding on startup...');
-    await runCatalogSeed();
-    await runAssessmentSeed();
-    await runInterviewSeed();
-    const collegeService = require('./services/collegeService');
-    await collegeService.seedDefaultColleges();
-    console.log('Safe catalog, assessment, interview, and college database seeding completed successfully.');
-  } catch (err) {
-    console.error('Safe seeding failed on startup:', err.message);
-  }
-
-
-  try {
-    await connectCognoDB();
-  } catch (err) {
-    console.error('CognoDB initialization error:', err.message);
-  }
-
   const PORT = config.port;
   const server = app.listen(PORT, () => {
     console.log(`=========================================`);
@@ -48,6 +29,27 @@ connectDB().then(async () => {
     console.log(` API Docs:    http://localhost:${PORT}/api/docs`);
     console.log(` Health:      http://localhost:${PORT}/api/health`);
     console.log(`=========================================`);
+  });
+
+  // Optional startup database seeding (disabled by default in normal production to avoid slow boots)
+  const shouldSeed = process.env.SEED_ON_STARTUP === 'true';
+  if (shouldSeed) {
+    try {
+      console.log('Running requested database seeding in background...');
+      await runCatalogSeed();
+      await runAssessmentSeed();
+      await runInterviewSeed();
+      const collegeService = require('./services/collegeService');
+      await collegeService.seedDefaultColleges();
+      console.log('Database seeding completed successfully.');
+    } catch (err) {
+      console.error('Database seeding failed:', err.message);
+    }
+  }
+
+  // Connect to CognoDB / Neo4j asynchronously without blocking incoming HTTP traffic
+  connectCognoDB().catch(err => {
+    console.warn('CognoDB initialization notice (operating in resilient MongoDB fallback mode):', err.message);
   });
 
   // Handle unhandled promise rejections gracefully

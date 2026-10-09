@@ -41,5 +41,9 @@
 | **Partner College Management Architecture (`/admin/colleges`)** | Completed | Tested (`Backend/src/services/collegeService.js`) | Verified in UI & API |
 | **Skill Graph Route Navigation & Defensive ErrorBoundary** | Completed | Tested (`Frontend/src/pages/SkillGraph.jsx`) | Verified in UI (`/dashboard` &harr; `/skill-graph`) |
 | **Real MongoDB Event-Driven Notification System** | Completed | Tested (`Backend/src/services/notificationService.js`) | Verified in UI (`<NotificationCenter />`) |
+| **CognoDB Query 2500ms Timeout & Resilient MongoDB Fallback** | Completed | Tested (`tests/skillGapTimeout.test.js`) | Verified in API & Test Suite |
+| **Non-Blocking Fast Server Bootstrap (Render Cold-Start Fix)** | Completed | Tested (`src/server.js`) | Verified in Live Environment |
+| **Instant Guest Login Page Rendering (<100ms)** | Completed | Tested (`src/App.jsx`, `src/context/AuthContext.jsx`) | Verified in UI |
+| **Bounded Network Timeouts (15s API, 4s Silent Refresh)** | Completed | Tested (`Frontend/src/services/api.js`) | Verified in HTTP Client |
 | **Comprehensive Technical Documentation in `/docs`** | Completed | Inspected | Verified in filesystem |
 

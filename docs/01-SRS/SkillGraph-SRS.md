@@ -200,19 +200,21 @@ The system enforces a strict 3-tier Role-Based Access Control (RBAC) model defin
   - *CURRENTLY IMPLEMENTED*: Canvas maintains 60 FPS for moderate graphs (<100 nodes), but exhibits frame-rate degradation on large graphs due to single-threaded CPU physics calculations.
 
 ### 9.2 Reliability & Availability
-- **NFR-03 (Graceful Graph Fallback)**:
-  - *CURRENTLY IMPLEMENTED*: If the CognoDB/Neo4j graph database is unavailable or disabled, graph query services fall back to MongoDB aggregation pipelines.
-- **NFR-04 (Database Reconnection)**:
-  - *CURRENTLY IMPLEMENTED*: Mongoose connection includes reconnection logging; unhandled connection rejections trigger clean process termination (`process.exit(1)`).
+- **NFR-03 (Graceful Graph Fallback & Timeout)**:
+  - *CURRENTLY IMPLEMENTED*: If the CognoDB/Neo4j graph database is unavailable, disabled, or takes longer than the 2500ms query timeout race, graph query services cleanly cancel timer resources and fall back deterministically to MongoDB aggregation pipelines without crashing or throwing unhandled rejections.
+- **NFR-04 (Database Reconnection & Non-Blocking Startup)**:
+  - *CURRENTLY IMPLEMENTED*: Express server binds to the platform port immediately following MongoDB connection without blocking on optional database seeds or graph drivers, eliminating cloud container boot delays.
+- **NFR-05 (Fast Client Mounting)**:
+  - *CURRENTLY IMPLEMENTED*: Public frontend routes (`/login`, `/register`, `/reset-password`) mount immediately (<100ms) for guest visitors without waiting for remote network verification.
 
 ### 9.3 Maintainability & Code Structure
-- **NFR-05 (Architectural Separation)**:
+- **NFR-06 (Architectural Separation)**:
   - *CURRENTLY IMPLEMENTED*: Strict separation of concerns into Routes, Controllers, Services, Models, Middlewares, and Utilities in `Backend/src/`.
-- **NFR-06 (Modular Frontend Layout)**:
+- **NFR-07 (Modular Frontend Layout)**:
   - *CURRENTLY IMPLEMENTED*: Reusable UI components (`ProgressBar`, `LoadingSpinner`, `ErrorState`, `EmptyState`, `AIAssistant`) with isolated page views in `Frontend/src/pages/`.
 
 ### 9.4 Usability & Accessibility
-- **NFR-07 (Responsive UI)**:
+- **NFR-08 (Responsive UI)**:
   - *CURRENTLY IMPLEMENTED*: Dashboard layout includes a responsive collapsible sidebar, mobile menu toggles, and slide-over drawers built with Tailwind CSS.
 
 ---
@@ -223,15 +225,15 @@ The system enforces a strict 3-tier Role-Based Access Control (RBAC) model defin
 - **AUTH-01 (Credential Hashing)**: User passwords hashed via `bcryptjs` with 12 salt rounds before storage.
 - **AUTH-02 (Password Masking)**: The `User.password` attribute is defined with `select: false` to prevent accidental leakage in query results.
 - **AUTH-03 (Token Format)**: Authentication uses signed JSON Web Tokens (JWT) containing `{ id, role }`, signed with `JWT_SECRET` and expiring according to `JWT_EXPIRES_IN` (default: 24h).
-- **AUTH-04 (Token Transport)**: Tokens are transmitted via HTTP header `Authorization: Bearer <token>`.
+- **AUTH-04 (Token Transport)**: Access tokens are transmitted via HTTP header `Authorization: Bearer <token>`; refresh tokens are transmitted via secure HTTP-only cookies (`skillgraph_rf`).
 - **AUTH-05 (Client Storage)**: Tokens are stored in browser `localStorage` under the key `'skillgraph_token'`.
-- **AUTH-06 (Session Invalidation)**: Axios response interceptor intercepts HTTP 401 Unauthorized responses, clears `localStorage`, and redirects to `/login`.
+- **AUTH-06 (Session Invalidation)**: Axios response interceptor intercepts HTTP 401 Unauthorized responses on protected routes, clears `localStorage`, and redirects to `/login`.
+- **AUTH-07 (Refresh Token Rotation)**: Refresh tokens rotate upon consumption via `POST /api/auth/refresh`. Reuse of a previously revoked refresh token triggers automatic revocation of all active sessions for the compromised user account.
+- **AUTH-08 (Self-Service Password Reset)**: Password recovery via secure random hex token Dispatch (`POST /api/auth/forgot-password`) and reset confirmation (`POST /api/auth/reset-password/:token`).
 
 ### NOT CURRENTLY IMPLEMENTED
-- **AUTH-07 (Refresh Token Rotation)**: Refresh tokens and silent background token rotation are not implemented; users must re-authenticate upon token expiration.
-- **AUTH-08 (Server-Side Blacklist)**: Token revocation via Redis blocklist is not implemented.
-- **AUTH-09 (Email Verification)**: Account activation via email links or OTP is not implemented.
-- **AUTH-10 (Self-Service Password Reset)**: "Forgot Password" email workflows are not implemented.
+- **AUTH-09 (Server-Side Redis Blacklist)**: In-memory Redis token revocation cache is not currently used; revocation is managed in MongoDB `AuthToken`.
+- **AUTH-10 (External Email Provider)**: Production SMTP delivery integration (SendGrid/SES) is mocked in dev/test mode.
 - **AUTH-11 (Multi-Factor Authentication)**: MFA / 2FA workflows (TOTP/SMS) are not implemented.
 
 ---

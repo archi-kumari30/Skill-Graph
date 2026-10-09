@@ -14,17 +14,24 @@ const connectCognoDB = async () => {
   }
 
   try {
-    driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
-    // Verify connection by running a check query
+    driver = neo4j.driver(uri, neo4j.auth.basic(username, password), {
+      connectionTimeout: 4000,
+      maxConnectionPoolSize: 25,
+      connectionAcquisitionTimeout: 3000
+    });
+    // Verify connection by running a check query with a timeout session
     const session = driver.session();
     await session.run('RETURN 1');
     await session.close();
     console.log("CognoDB Connected: true");
     return driver;
   } catch (error) {
-    console.error("CognoDB connection failed:", error.message);
+    console.warn("CognoDB connection notice:", error.message);
+    if (driver) {
+      await driver.close().catch(() => {});
+    }
     driver = null;
-    throw error;
+    return null;
   }
 };
 

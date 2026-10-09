@@ -50,9 +50,9 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         }
-        // Attempt silent cookie recovery if token is absent or expired
+        // Attempt silent cookie recovery if token is absent or expired with bounded 4s timeout
         try {
-          const res = await api.post('/auth/refresh');
+          const res = await api.post('/auth/refresh', {}, { timeout: 4000 });
           const { user: refreshedUser, token: refreshedToken } = extractAuthPayload(res);
           if (refreshedToken && refreshedUser) {
             localStorage.setItem('skillgraph_token', refreshedToken);

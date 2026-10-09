@@ -86,3 +86,19 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 npm run build
 ```
 You can review the bundled outputs or serve them using `npm run preview`.
+
+---
+
+## 6. Performance & Authentication Lifecycle Architecture
+
+### Instant Public Route Mounting (<100ms)
+- For guest visitors without stored session tokens in `localStorage`, `PublicRoute` mounts `/login`, `/register`, and `/reset-password` immediately without waiting for a backend network request.
+- The login interface is accessible in <100ms even if the backend is currently cold-starting.
+
+### Silent Background Session Recovery
+- `AuthContext` executes silent token recovery via `POST /api/auth/refresh` in the background with a 4000ms bounded timeout.
+- If a valid refresh cookie exists, the user state updates and redirects smoothly to their respective role dashboard.
+- Normal guest 401 responses ("Refresh token required") are handled gracefully without flashing error messages or blocking the visitor.
+
+### Request Timeouts
+- Central Axios client configured with a 15-second request timeout and 6-second refresh timeout to avoid infinite connection hangs.

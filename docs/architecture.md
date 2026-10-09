@@ -87,3 +87,24 @@ SkillGraph enforces strict separation between user types to guarantee tailored w
 ### Persistence Layer
 - **MongoDB Atlas**: Document storage with compound indexing (`{ userId: 1, jobId: 1 }` for duplicate prevention, `{ userId: 1, questionId: 1 }` for mastery tracking, ESR indexing on jobs).
 - **CognoDB / Graph Driver**: Graph engine integration with automatic MongoDB fallback for high availability.
+
+---
+
+## 4. Performance, Startup Sequence & Deployment Resilience
+
+### A. Non-Blocking Backend Bootstrap (`server.js`)
+- **Port Binding**: Express calls `app.listen(PORT)` immediately upon establishing the MongoDB connection.
+- **Cold Start Elimination**: Eliminates the 45–90 second startup delay previously caused by running 4 sequential seed suites on startup. Render's health and port checks pass in ~2 seconds.
+- **Background Drivers**: `connectCognoDB()` initializes asynchronously in the background. If unavailable, the system operates seamlessly in MongoDB fallback mode.
+- **Startup Seeding Guard**: Database seeding only executes when explicitly enabled via `SEED_ON_STARTUP=true`.
+
+### B. Graph Query Timeout & Safe Fallback (`skillGapService.js`)
+- Graph queries executed against CognoDB/Neo4j are wrapped in a 2500ms timeout race.
+- Timers are deterministically cleared via `clearTimeout(timerId)`.
+- Background promise rejection listeners prevent unhandled rejections if graph queries fail after timeout settlement.
+- MongoDB fallback provides identical readiness calculations if the graph query fails or times out.
+
+### C. Fast Frontend Mounting for Guest Visitors (`App.jsx`, `AuthContext.jsx`)
+- `PublicRoute` renders `/login` and `/register` immediately (<100ms) for visitors without a stored token.
+- Background silent cookie recovery checks `/api/auth/refresh` with a 4000ms timeout.
+- Normal guest 401 responses do not interrupt visitor interaction or trigger page reloads.

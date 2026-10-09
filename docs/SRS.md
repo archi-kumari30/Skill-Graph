@@ -1187,10 +1187,13 @@ To maintain academic integrity, the platform's operational status is explicitly 
 
 ## 30. Non-Functional Requirements & Performance Benchmarks
 
-1. **Security**: All passwords hashed using bcrypt with 12 salt rounds; stateless JWT tokens rotated via secure HttpOnly cookies; NoSQL injection stripped via MongoSanitize; defensive security headers configured via Helmet.
+1. **Security**: All passwords hashed using bcrypt with 12 salt rounds; stateless JWT tokens rotated via secure HttpOnly, SameSite=None, Secure cookies; NoSQL injection stripped via MongoSanitize; defensive security headers configured via Helmet.
 2. **Determinism**: Role readiness scores and job match percentages are calculated through mathematical formulas without random approximations.
 3. **Availability & Fault Tolerance**: When external services (Google Gemini API or CognoDB Bolt driver) encounter network timeouts or authentication errors, the platform automatically falls back to rule-based advisors and MongoDB collections without crashing.
-4. **Data Integrity**: Enforced through compound unique indexes on critical collections:
+4. **Graph Query Timeout & Resilience**: CognoDB / Neo4j graph queries operate under an active 2500ms timeout race with deterministic timer cancellation. If a graph query exceeds 2500ms or fails, the system executes an automated fallback to MongoDB readiness computation.
+5. **Backend Bootstrap & Cold-Start Resilience**: The Express HTTP server binds to the platform port immediately following MongoDB connection. Database catalog and assessment seeding is bypassed during standard production boots, preventing container deployment timeouts on serverless platforms such as Render.
+6. **Frontend Mounting Performance**: Public views (`/login`, `/register`, `/reset-password`) mount immediately for guest visitors (<100ms) without blocking on remote authentication recovery. Background silent token recovery operates with a bounded 4000ms timeout.
+7. **Data Integrity**: Enforced through compound unique indexes on critical collections:
    - `{ userId: 1, jobId: 1 }` on `JobApplication` (eliminates duplicate submissions).
    - `{ userId: 1, questionId: 1 }` on `UserInterviewProgress` (eliminates duplicate mastery entries).
    - `{ roleId: 1, skillId: 1 }` on `RoleSkill`.

@@ -34,9 +34,50 @@ Authenticates a user with email and password.
     "password": "Password123"
   }
   ```
-- **Response**: `200 OK` with user payload and access token.
+- **Response**: `200 OK` with user payload and access token. Sets `skillgraph_rf` HTTP-only cookie.
+
+### `POST /api/auth/refresh`
+Rotates JWT access and refresh tokens. Reads `skillgraph_rf` cookie or `refreshToken` body property.
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "message": "Token refreshed successfully",
+    "data": {
+      "user": { ... },
+      "token": "eyJhbGciOi...",
+      "accessToken": "eyJhbGciOi..."
+    }
+  }
+  ```
+- **Guest State (401 Unauthorized)**: Returns `{"success": false, "error": {"message": "Refresh token required"}}` if no cookie or token is present. Handled non-disruptively by the frontend.
+
+### `POST /api/auth/logout`
+Invalidates refresh token in MongoDB `AuthToken` collection and clears the `skillgraph_rf` cookie.
+- **Response**: `200 OK` with `{ "success": true, "message": "Logged out successfully" }`
 
 ---
+
+## 3. Skill Gap & Career Readiness API (`/api/skill-gap`)
+
+### `GET /api/skill-gap/:roleId` (Protected)
+Calculates deterministic skill gap, missing skills, and career readiness percentage against a target role.
+- **Architecture**: Queries CognoDB/Neo4j graph engine with a 2500ms timeout race. Falls back seamlessly to MongoDB readiness scoring if the graph engine is unavailable or times out.
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "user": { "id": "...", "name": "Alex Student", "email": "student@skillgraph.com" },
+      "role": { "id": "...", "name": "Frontend Developer", "department": "Engineering", "level": "mid" },
+      "readinessScore": 85,
+      "matchedSkills": 4,
+      "missingSkills": 1,
+      "skillsToImprove": 1,
+      "skills": [...]
+    }
+  }
+  ```
 
 ## 3. Jobs & Recruitment API (`/api/jobs`)
 

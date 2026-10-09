@@ -269,3 +269,21 @@ Header: `Authorization: Bearer <token>`
   }
 }
 ```
+
+---
+
+## 9. Production Deployment & Graph Resilience
+
+### Fast Non-Blocking Server Bootstrap (Render Compatibility)
+- Express binds to the environment `PORT` immediately after connecting to MongoDB.
+- Heavy database seeds (`runCatalogSeed`, `runAssessmentSeed`, `runInterviewSeed`, `seedDefaultColleges`) do not run automatically on normal production startup, eliminating cold-start hangs.
+- To run database seeding manually or in CI/CD, use:
+  ```bash
+  npm run seed
+  ```
+  or set the environment variable `SEED_ON_STARTUP=true`.
+
+### Resilient Graph Timeout & MongoDB Fallback
+- Skill-gap analysis queries running via CognoDB / Neo4j driver are bounded by a **2500ms timeout race**.
+- If CognoDB takes longer than 2500ms or fails to respond, the query automatically falls back to MongoDB readiness evaluation without crashing or hanging requests.
+- All 17 automated integration test suites verify system health (`npm test`).

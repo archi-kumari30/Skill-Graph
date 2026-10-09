@@ -98,6 +98,33 @@ The registration portal strictly allows registration for only two roles:
 
 ### POST /api/auth/refresh
 - Uses HTTP-only cookie `skillgraph_rf` or request body `refreshToken` to rotate tokens.
+- **Cookie Security Attributes**:
+  - `httpOnly: true` (prevents XSS exfiltration)
+  - `secure: true` in production (enforces HTTPS)
+  - `sameSite: 'none'` in production (enables cross-site cookie transmission between Vercel and Render)
+  - `path: '/'`
+  - `maxAge: 7 * 24 * 60 * 60 * 1000` (7 days)
+- **Token Rotation & Compromise Detection**:
+  - Upon successful refresh, the existing token is marked `revoked: true` and a new refresh token and access token pair are dispatched.
+  - If a previously revoked refresh token is presented, the system detects potential token reuse and immediately invalidates *all* active refresh tokens for that user account (`AuthToken.updateMany({ userId }, { revoked: true })`).
+- **Guest State Handling (HTTP 401)**:
+  - If a client sends a request without a refresh cookie or body token (standard guest visitor), the endpoint responds with `HTTP 401 Unauthorized` and payload `{"success": false, "error": {"message": "Refresh token required"}}`.
+  - This is an expected guest response and must not be treated as a fatal application crash or trigger infinite page reloads.
 
 ### POST /api/auth/logout
 - Clears the refresh token cookie and invalidates session records in `AuthToken`.
+
+---
+
+## 5. Client-Side Lifecycle & Fast Guest Rendering
+
+### Non-Blocking Guest Mounting
+- `PublicRoute` checks if an existing session token is stored in `localStorage`.
+- **Pure Guest Visitors**: For visitors without a stored token, `PublicRoute` mounts the public interface (`/login`, `/register`) **immediately (<100ms)** without blocking on a remote network roundtrip to Render.
+- **Silent Cookie Recovery**: `AuthContext.initAuth()` executes in the background with a bounded 4000ms timeout.
+  - If a valid session cookie exists from a previous login, the user and token state update silently and redirect the user to the role dashboard.
+  - If no cookie exists (HTTP 401), the error is caught cleanly and the visitor remains on the login interface without disruptions.
+
+### Request Timeouts
+- Axios client configured with a global 15-second network timeout.
+- Authentication silent refresh configured with a dedicated 4-to-6 second timeout to prevent UI freezes during network fluctuations or backend cold starts.

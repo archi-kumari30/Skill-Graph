@@ -68,3 +68,35 @@ Student applications for job positions.
 ### Topic & UserTopicProgress (`Backend/src/models/Topic.js`, `UserTopicProgress.js`)
 - Topics store chapter units under skills with sequential ordering and prerequisite topic pointers.
 - `UserTopicProgress` persists topic completion status per user, calculating learning points and recalculating graph readiness.
+
+### College (`Backend/src/models/College.js`)
+- `name` (String, required, unique, trimmed).
+- `location` (String, default: 'India').
+- `website` (String).
+- `status` (String, enum: `['active', 'inactive']`, default: 'active', indexed).
+- `studentCount` (Number, default: 0).
+- *Index Optimization*: Single-field duplicate index on `name` removed in favor of schema-level `unique: true`.
+
+### AuthToken (`Backend/src/models/AuthToken.js`)
+- Refresh token persistence for secure multi-device sessions and token rotation.
+- `userId` (ObjectId, ref: `User`, required, indexed).
+- `tokenHash` (String, required, SHA-256 digest of raw 40-byte hex refresh token).
+- `expiresAt` (Date, required, TTL index: `expireAfterSeconds: 0`).
+- `revoked` (Boolean, default: `false`, indexed with `userId`).
+- `ipAddress` (String), `userAgent` (String).
+
+---
+
+## 3. Database Connection & Graph Resilience Architecture
+
+### MongoDB Connection (`Backend/src/config/db.js`)
+- Configured with Google and Cloudflare DNS fallback (`8.8.8.8`, `1.1.1.1`) to resolve SRV records on restrictive networks.
+- Safe dynamic index reconciliation on startup.
+
+### CognoDB / Neo4j Graph Connection (`Backend/src/config/cognodb.js`)
+- Bolt protocol driver (`neo4j-driver`) with dedicated connection options:
+  - `connectionTimeout`: 4000ms
+  - `connectionAcquisitionTimeout`: 3000ms
+  - `maxConnectionPoolSize`: 25
+- Non-blocking startup: driver connects asynchronously in background so Express binds to the port immediately without waiting on graph DB roundtrips.
+- Graceful MongoDB Fallback: If CognoDB is unconfigured or unreachable, all queries (skill gaps, career readiness, recommendations, learning paths) execute deterministically against MongoDB.

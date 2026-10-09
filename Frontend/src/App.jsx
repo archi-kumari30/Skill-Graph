@@ -60,20 +60,29 @@ const PrivateRoute = ({ children }) => {
 const PublicRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <LoadingSpinner message="Verifying session..." />
-      </div>
-    );
+  // If authenticated, redirect away from public auth pages to role dashboard
+  if (isAuthenticated) {
+    const userRole = user?.accountRole || user?.role;
+    if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
+    if (userRole === 'recruiter' || userRole === 'manager') return <Navigate to="/recruiter/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
-  if (!isAuthenticated) return children;
+  // Only display full-screen verifying spinner if there is an existing session token being checked
+  // Guest visitors without stored tokens render the public interface immediately without waiting
+  if (loading) {
+    const hasStoredToken = typeof window !== 'undefined' &&
+      !!(localStorage.getItem('skillgraph_token') || localStorage.getItem('token'));
+    if (hasStoredToken) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <LoadingSpinner message="Verifying session..." />
+        </div>
+      );
+    }
+  }
 
-  const userRole = user?.accountRole || user?.role;
-  if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
-  if (userRole === 'recruiter' || userRole === 'manager') return <Navigate to="/recruiter/dashboard" replace />;
-  return <Navigate to="/dashboard" replace />;
+  return children;
 };
 
 // 3. Manager/Admin Role Guard

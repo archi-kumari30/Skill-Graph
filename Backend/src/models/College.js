@@ -33,7 +33,6 @@ const collegeSchema = new mongoose.Schema(
   }
 );
 
-collegeSchema.index({ name: 1 });
 collegeSchema.index({ status: 1 });
 
 const College = mongoose.model('College', collegeSchema);

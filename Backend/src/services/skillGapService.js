@@ -20,15 +20,41 @@ const calculateGap = async (userId, roleId) => {
 
   const { getDriver } = require('../config/cognodb');
   if (process.env.USE_GRAPH_DB === 'true' && getDriver && getDriver()) {
+    let timerId = null;
     try {
-      const graphTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('CognoDB query timeout after 2500ms')), 2500)
-      );
-      return await Promise.race([
-        graphService.getSkillGaps(userId, roleId),
-        graphTimeout
+      const graphPromise = graphService.getSkillGaps(userId, roleId);
+
+      // Guard against late unhandled promise rejection if graph query fails after timeout
+      if (graphPromise && typeof graphPromise.catch === 'function') {
+        graphPromise.catch((err) => {
+          console.warn('[COGNODB TIMEOUT SILENT CATCH] Query settled after timeout:', err?.message || err);
+        });
+      }
+
+      const timeoutPromise = new Promise((_, reject) => {
+        timerId = setTimeout(() => {
+          reject(new Error('CognoDB query timeout after 2500ms'));
+        }, 2500);
+      });
+
+      const graphResult = await Promise.race([
+        graphPromise,
+        timeoutPromise
       ]);
+
+      if (timerId) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
+
+      if (graphResult) {
+        return graphResult;
+      }
     } catch (err) {
+      if (timerId) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
       console.warn('[COGNODB RESILIENCE] Falling back to MongoDB for skill gaps:', err.message);
     }
   }
