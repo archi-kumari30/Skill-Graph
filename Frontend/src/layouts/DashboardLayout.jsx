@@ -64,9 +64,14 @@ const DashboardLayout = ({ children }) => {
     return () => { isMounted = false; };
   }, [isStudent]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    setUserDropdownOpen(false);
+    setMobileMenuOpen(false);
+    try {
+      await logout();
+    } finally {
+      navigate('/login', { replace: true });
+    }
   };
 
   // Configure secondary horizontal navigation items

@@ -104,21 +104,154 @@ const getDashboardSummary = async () => {
   };
 };
 
+// Optimized helper to compute top job matches for user from Job collection without heavy notifications or table scans
+const getTopJobMatchesForDashboard = async (userId, userSkills) => {
+  try {
+    const userSkillMap = {};
+    (userSkills || []).forEach(us => {
+      const sid = us.skillId?._id ? us.skillId._id.toString() : (us.skillId ? us.skillId.toString() : null);
+      if (sid) {
+        userSkillMap[sid] = us.proficiency || 0;
+      }
+    });
+
+    const jobs = await Job.find({ status: { $in: ['Active', 'active', null] } })
+      .limit(20)
+      .populate('companyId', 'name location industry website')
+      .populate('requirements.skillId', 'name category')
+      .lean();
+
+    if (!jobs || jobs.length === 0) return [];
+
+    const matches = jobs.map(job => {
+      const reqs = job.requirements || [];
+      let totalScore = 0;
+      if (reqs.length === 0) {
+        totalScore = 1;
+      } else {
+        let scoreSum = 0;
+        let count = 0;
+        for (const req of reqs) {
+          const s = req.skillId;
+          if (!s) continue;
+          count++;
+          const sId = s._id ? s._id.toString() : s.toString();
+          const prof = userSkillMap[sId] || 0;
+          if (prof >= 3) scoreSum += 1.0;
+          else if (prof >= 1) scoreSum += 0.5;
+        }
+        totalScore = count > 0 ? (scoreSum / count) : 1;
+      }
+      const matchScore = Math.round(totalScore * 100);
+
+      const companyName = job.companyId?.name || (typeof job.company === 'string' ? job.company : job.companyName) || 'Company';
+      return {
+        jobId: job._id,
+        title: job.title,
+        company: companyName,
+        companyName: companyName,
+        matchScore,
+        location: job.location || 'Remote',
+        workMode: job.workMode || 'Hybrid',
+        salary: job.salary || job.salaryRange || ''
+      };
+    });
+
+    matches.sort((a, b) => b.matchScore - a.matchScore);
+    return matches.slice(0, 4);
+  } catch (err) {
+    console.warn('Could not compute fast top job matches for command center:', err.message);
+    return [];
+  }
+};
+
+const computeReadinessAndGaps = async (userId, user, userSkills) => {
+  let readiness = null;
+  let topGaps = [];
+  let continueTopics = [];
+
+  if (user.targetRoleId) {
+    try {
+      const targetRoleId = user.targetRoleId._id || user.targetRoleId;
+      const gapData = await skillGapService.calculateGap(userId, targetRoleId);
+      readiness = {
+        score: gapData.readinessScore,
+        matchedSkills: gapData.matchedSkills,
+        missingSkills: gapData.missingSkills,
+        skillsToImprove: gapData.skillsToImprove,
+        targetRole: {
+          id: targetRoleId,
+          name: user.targetRoleId.name || 'Target Role',
+          level: user.targetRoleId.level || 'Mid'
+        }
+      };
+
+      // Extract top gaps (status !== 'mastered')
+      topGaps = (gapData.skills || [])
+        .filter(s => s.status !== 'mastered')
+        .sort((a, b) => {
+          const weightDiff = (b.importance === 'required' ? 3 : 2) - (a.importance === 'required' ? 3 : 2);
+          if (weightDiff !== 0) return weightDiff;
+          return (b.gap || 0) - (a.gap || 0);
+        })
+        .slice(0, 5);
+
+      // Find next incomplete topics
+      const completedProgress = await UserTopicProgress.find({ userId }).select('topicTitle').lean();
+      const completedTopicTitles = new Set(completedProgress.map(p => p.topicTitle).filter(Boolean));
+
+      // Target role skills
+      const roleSkillIds = (gapData.skills || []).map(s => s.skill?.id || s.skill?._id || s.skillId).filter(Boolean);
+      const availableTopics = await Topic.find({ skillId: { $in: roleSkillIds } })
+        .populate('skillId', 'name category')
+        .sort({ order: 1 })
+        .lean();
+
+      continueTopics = availableTopics
+        .filter(t => !completedTopicTitles.has(t.title))
+        .slice(0, 4);
+
+    } catch (err) {
+      console.warn('Could not compute target role readiness:', err.message);
+    }
+  }
+
+  // If no continue topics found from target role, take from any skill the user has logged
+  if (continueTopics.length === 0 && userSkills.length > 0) {
+    const userSkillIds = userSkills.filter(us => us.skillId).map(us => us.skillId._id || us.skillId);
+    const completedProgress = await UserTopicProgress.find({ userId }).select('topicTitle').lean();
+    const completedTopicTitles = new Set(completedProgress.map(p => p.topicTitle).filter(Boolean));
+
+    const fallbackTopics = await Topic.find({ skillId: { $in: userSkillIds } })
+      .populate('skillId', 'name category')
+      .sort({ order: 1 })
+      .lean();
+
+    continueTopics = fallbackTopics
+      .filter(t => !completedTopicTitles.has(t.title))
+      .slice(0, 4);
+  }
+
+  return { readiness, topGaps, continueTopics };
+};
+
 const getUserCommandCenter = async (userId) => {
-  const user = await User.findById(userId).populate('targetRoleId').populate('savedRoleIds');
+  // Concurrently fetch user-scoped documents in parallel
+  const [user, userSkills, projects, allActivities, userApps] = await Promise.all([
+    User.findById(userId).populate('targetRoleId').populate('savedRoleIds').lean(),
+    UserSkill.find({ userId }).populate('skillId').lean(),
+    Project.find({ userId }).populate('skillsUsed').lean(),
+    DailyActivity.find({ userId }).sort({ createdAt: -1 }).lean(),
+    JobApplication.find({ userId }).lean()
+  ]);
+
   if (!user) {
     throw new Error('User not found');
   }
 
-  // User Skills
-  const userSkills = await UserSkill.find({ userId }).populate('skillId').lean();
   const verifiedCount = userSkills.filter(us => us.verified || us.verificationStatus === 'verified').length;
 
-  // Projects
-  const projects = await Project.find({ userId }).populate('skillsUsed').lean();
-
   // Activities & Streak
-  const allActivities = await DailyActivity.find({ userId }).sort({ createdAt: -1 }).lean();
   const activeDatesSet = new Set(allActivities.map(a => a.date));
 
   // Calculate streak
@@ -163,93 +296,15 @@ const getUserCommandCenter = async (userId) => {
     }
   });
 
-  // Calculate Career Readiness and Gaps if target role is set
-  let readiness = null;
-  let topGaps = [];
-  let continueTopics = [];
+  // Concurrently calculate readiness/gaps and top job matches in parallel
+  const [readinessResult, topJobMatches] = await Promise.all([
+    computeReadinessAndGaps(userId, user, userSkills),
+    getTopJobMatchesForDashboard(userId, userSkills)
+  ]);
 
-  if (user.targetRoleId) {
-    try {
-      const gapData = await skillGapService.calculateGap(userId, user.targetRoleId._id);
-      readiness = {
-        score: gapData.readinessScore,
-        matchedSkills: gapData.matchedSkills,
-        missingSkills: gapData.missingSkills,
-        skillsToImprove: gapData.skillsToImprove,
-        targetRole: {
-          id: user.targetRoleId._id,
-          name: user.targetRoleId.name,
-          level: user.targetRoleId.level
-        }
-      };
-
-      // Extract top gaps (status !== 'mastered')
-      topGaps = gapData.skills
-        .filter(s => s.status !== 'mastered')
-        .sort((a, b) => {
-          const weightDiff = (b.importance === 'required' ? 3 : 2) - (a.importance === 'required' ? 3 : 2);
-          if (weightDiff !== 0) return weightDiff;
-          return b.gap - a.gap;
-        })
-        .slice(0, 5);
-
-      // Find next incomplete topics
-      const completedProgress = await UserTopicProgress.find({ userId }).select('topicTitle').lean();
-      const completedTopicTitles = new Set(completedProgress.map(p => p.topicTitle).filter(Boolean));
-
-      // Target role skills
-      const roleSkillIds = gapData.skills.map(s => s.skill.id);
-      const availableTopics = await Topic.find({ skillId: { $in: roleSkillIds } })
-        .populate('skillId', 'name category')
-        .sort({ order: 1 })
-        .lean();
-
-      continueTopics = availableTopics
-        .filter(t => !completedTopicTitles.has(t.title))
-        .slice(0, 4);
-
-    } catch (err) {
-      console.warn('Could not compute target role readiness:', err.message);
-    }
-  }
-
-  // If no continue topics found from target role, take from any skill the user has logged
-  if (continueTopics.length === 0 && userSkills.length > 0) {
-    const userSkillIds = userSkills.filter(us => us.skillId).map(us => us.skillId._id);
-    const completedProgress = await UserTopicProgress.find({ userId }).select('topicTitle').lean();
-    const completedTopicTitles = new Set(completedProgress.map(p => p.topicTitle).filter(Boolean));
-
-    const fallbackTopics = await Topic.find({ skillId: { $in: userSkillIds } })
-      .populate('skillId', 'name category')
-      .sort({ order: 1 })
-      .lean();
-
-    continueTopics = fallbackTopics
-      .filter(t => !completedTopicTitles.has(t.title))
-      .slice(0, 4);
-  }
-
-  // Compute top job matches for user from Job collection
-  let topJobMatches = [];
-  try {
-    const jobService = require('./jobService');
-    const allMatches = await jobService.getJobMatches(userId);
-    topJobMatches = allMatches.slice(0, 4).map(m => ({
-      jobId: m.jobId,
-      title: m.title,
-      company: m.company?.name || (typeof m.company === 'string' ? m.company : 'Company'),
-      companyName: m.company?.name || (typeof m.company === 'string' ? m.company : 'Company'),
-      matchScore: m.matchScore,
-      location: m.location,
-      workMode: m.workMode || 'Hybrid',
-      salary: m.salary || m.salaryRange || ''
-    }));
-  } catch (err) {
-    console.warn('Could not compute job matches for command center:', err.message);
-  }
+  const { readiness, topGaps, continueTopics } = readinessResult;
 
   // Compute real application metrics
-  const userApps = await JobApplication.find({ userId });
   const applicationStats = {
     total: userApps.length,
     applied: userApps.filter(a => a.status === 'applied').length,

@@ -39,10 +39,16 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await api.get('/dashboard/command-center');
-      setCommandData(res?.data?.data || res?.data || res);
+      const res = await api.get('/dashboard/command-center', { timeout: 10000 });
+      const data = res?.data?.data || res?.data || res;
+      setCommandData(data);
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to load Command Center data');
+      const errMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to load Command Center data';
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -62,9 +68,7 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner message="Opening your Career Command Center..." />;
-  if (error) return <ErrorState message={error} onRetry={fetchCommandCenter} />;
-
+  const isLoading = loading && !commandData;
   const userData = commandData?.user || user;
   const stats = commandData?.quickStats || {};
   const readiness = commandData?.readiness || null;
@@ -75,11 +79,31 @@ const Dashboard = () => {
   const topMatches = commandData?.topMatches || commandData?.jobMatches || [];
   const appStats = commandData?.applicationStats || null;
 
-  const targetRole = userData?.targetRole;
+  const targetRole = userData?.targetRole || user?.targetRoleId || user?.targetRole;
   const readinessScore = readiness?.score ?? stats?.readinessScore ?? 0;
 
   return (
     <div className="space-y-8 font-sans animate-in fade-in duration-200">
+      
+      {/* Non-blocking Recoverable Error Banner */}
+      {error && !commandData && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 text-amber-900 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <h4 className="text-sm font-extrabold text-amber-950">Unable to load latest command center metrics</h4>
+              <p className="text-xs text-amber-800">{error}</p>
+            </div>
+          </div>
+          <button
+            onClick={fetchCommandCenter}
+            disabled={loading}
+            className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-colors inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Retrying...' : 'Retry'}
+          </button>
+        </div>
+      )}
       
       {/* 1. ONBOARDING PROMPT BANNER (If not finished) */}
       {!userData?.onboardingCompleted && (
@@ -148,27 +172,38 @@ const Dashboard = () => {
           <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
             Career Readiness
           </p>
-          <div className="relative flex items-center justify-center">
-            <div className="w-28 h-28 rounded-full border-8 border-zinc-200 flex items-center justify-center relative">
-              <div
-                className="absolute inset-0 rounded-full border-8 border-indigo-600 transition-all duration-700"
-                style={{
-                  clipPath: `polygon(0 0, 100% 0, 100% ${readinessScore}%, 0 ${readinessScore}%)`
-                }}
-              />
-              <div className="text-center z-10">
-                <span className="text-3xl font-black text-zinc-900">{readinessScore}%</span>
-                <span className="block text-[9px] font-bold text-zinc-400 uppercase">Ready</span>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center space-y-3 py-2">
+              <div className="w-28 h-28 rounded-full border-8 border-indigo-100 animate-pulse flex items-center justify-center">
+                <span className="text-2xl font-black text-indigo-300">...</span>
               </div>
+              <p className="text-[11px] font-medium text-zinc-400 animate-pulse">Calculating readiness...</p>
             </div>
-          </div>
-          <div className="flex items-center gap-4 text-[11px] font-bold text-zinc-500 mt-4">
-            <span className="text-emerald-600 font-extrabold">{readiness?.matchedSkills || 0} Matched</span>
-            <span>•</span>
-            <span className="text-indigo-600 font-extrabold">{readiness?.skillsToImprove || 0} Growing</span>
-            <span>•</span>
-            <span className="text-amber-600 font-extrabold">{readiness?.missingSkills || 0} Missing</span>
-          </div>
+          ) : (
+            <>
+              <div className="relative flex items-center justify-center">
+                <div className="w-28 h-28 rounded-full border-8 border-zinc-200 flex items-center justify-center relative">
+                  <div
+                    className="absolute inset-0 rounded-full border-8 border-indigo-600 transition-all duration-700"
+                    style={{
+                      clipPath: `polygon(0 0, 100% 0, 100% ${readinessScore}%, 0 ${readinessScore}%)`
+                    }}
+                  />
+                  <div className="text-center z-10">
+                    <span className="text-3xl font-black text-zinc-900">{readinessScore}%</span>
+                    <span className="block text-[9px] font-bold text-zinc-400 uppercase">Ready</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] font-bold text-zinc-500 mt-4">
+                <span className="text-emerald-600 font-extrabold">{readiness?.matchedSkills || 0} Matched</span>
+                <span>•</span>
+                <span className="text-indigo-600 font-extrabold">{readiness?.skillsToImprove || 0} Growing</span>
+                <span>•</span>
+                <span className="text-amber-600 font-extrabold">{readiness?.missingSkills || 0} Missing</span>
+              </div>
+            </>
+          )}
         </div>
 
       </div>
@@ -182,9 +217,13 @@ const Dashboard = () => {
             <span className="text-[10px] font-bold uppercase tracking-wider">Verified Skills</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">
-            {stats.verifiedSkills || 0} <span className="text-xs font-semibold text-zinc-400">/ {stats.totalSkills || 0}</span>
-          </p>
+          {isLoading ? (
+            <div className="h-8 w-20 bg-zinc-100 rounded-lg animate-pulse my-1" />
+          ) : (
+            <p className="text-2xl font-black text-zinc-900">
+              {stats.verifiedSkills || 0} <span className="text-xs font-semibold text-zinc-400">/ {stats.totalSkills || 0}</span>
+            </p>
+          )}
           <Link to="/assessments" className="text-[11px] text-indigo-600 hover:underline font-bold block pt-1">
             Take tests &rarr;
           </Link>
@@ -196,9 +235,13 @@ const Dashboard = () => {
             <span className="text-[10px] font-bold uppercase tracking-wider">Practice Streak</span>
             <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">
-            {stats.streakDays || 0} <span className="text-xs font-semibold text-zinc-400">Days</span>
-          </p>
+          {isLoading ? (
+            <div className="h-8 w-16 bg-zinc-100 rounded-lg animate-pulse my-1" />
+          ) : (
+            <p className="text-2xl font-black text-zinc-900">
+              {stats.streakDays || 0} <span className="text-xs font-semibold text-zinc-400">Days</span>
+            </p>
+          )}
           <Link to="/activity" className="text-[11px] text-amber-700 hover:underline font-bold block pt-1">
             View streak &rarr;
           </Link>
@@ -210,9 +253,13 @@ const Dashboard = () => {
             <span className="text-[10px] font-bold uppercase tracking-wider">This Week</span>
             <Clock className="w-4 h-4 text-indigo-600" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">
-            {stats.hoursThisWeek || 0} <span className="text-xs font-semibold text-zinc-400">/ {stats.weeklyGoalHours || 10}h</span>
-          </p>
+          {isLoading ? (
+            <div className="h-8 w-20 bg-zinc-100 rounded-lg animate-pulse my-1" />
+          ) : (
+            <p className="text-2xl font-black text-zinc-900">
+              {stats.hoursThisWeek || 0} <span className="text-xs font-semibold text-zinc-400">/ {stats.weeklyGoalHours || 10}h</span>
+            </p>
+          )}
           <span className="text-[11px] text-zinc-500 font-semibold block pt-1">
             Weekly study pacing
           </span>
@@ -224,9 +271,13 @@ const Dashboard = () => {
             <span className="text-[10px] font-bold uppercase tracking-wider">Portfolio Proof</span>
             <FolderGit2 className="w-4 h-4 text-purple-600" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">
-            {stats.totalProjects || 0} <span className="text-xs font-semibold text-zinc-400">Projects</span>
-          </p>
+          {isLoading ? (
+            <div className="h-8 w-16 bg-zinc-100 rounded-lg animate-pulse my-1" />
+          ) : (
+            <p className="text-2xl font-black text-zinc-900">
+              {stats.totalProjects || 0} <span className="text-xs font-semibold text-zinc-400">Projects</span>
+            </p>
+          )}
           <Link to="/projects" className="text-[11px] text-purple-700 hover:underline font-bold block pt-1">
             Manage evidence &rarr;
           </Link>
@@ -254,7 +305,17 @@ const Dashboard = () => {
               </Link>
             </div>
 
-            {continueTopics.length === 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {[1, 2].map((i) => (
+                  <div key={i} className="p-4 rounded-2xl border border-zinc-200/90 bg-[#FAF9F6] animate-pulse space-y-3">
+                    <div className="w-16 h-4 bg-zinc-200 rounded" />
+                    <div className="w-3/4 h-4 bg-zinc-200 rounded" />
+                    <div className="w-full h-3 bg-zinc-200 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : continueTopics.length === 0 ? (
               <div className="p-8 text-center bg-[#FAF9F6] rounded-2xl border border-zinc-200 space-y-3">
                 <BookOpen className="w-8 h-8 text-zinc-400 mx-auto" />
                 <p className="text-xs text-zinc-600 font-semibold">
@@ -315,7 +376,16 @@ const Dashboard = () => {
               </Link>
             </div>
 
-            {topGaps.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 rounded-2xl border border-zinc-200/80 bg-[#FAF9F6] animate-pulse space-y-2">
+                    <div className="w-1/3 h-4 bg-zinc-200 rounded" />
+                    <div className="w-full h-2 bg-zinc-200 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : topGaps.length === 0 ? (
               <div className="p-8 text-center bg-emerald-50/50 rounded-2xl border border-emerald-200 text-emerald-900 space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                 <p className="text-sm font-bold">No critical skill gaps identified!</p>
@@ -391,7 +461,19 @@ const Dashboard = () => {
               </Link>
             </div>
 
-            {topMatches.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="p-4 rounded-2xl border border-zinc-200/80 bg-[#FAF9F6] animate-pulse flex justify-between items-center">
+                    <div className="space-y-2 w-2/3">
+                      <div className="w-1/2 h-4 bg-zinc-200 rounded" />
+                      <div className="w-1/3 h-3 bg-zinc-200 rounded" />
+                    </div>
+                    <div className="w-12 h-6 bg-zinc-200 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : topMatches.length === 0 ? (
               <div className="p-6 text-center bg-[#FAF9F6] rounded-2xl border border-zinc-200 space-y-2">
                 <Briefcase className="w-6 h-6 text-zinc-400 mx-auto" />
                 <p className="text-xs text-zinc-600 font-semibold">
@@ -531,7 +613,16 @@ const Dashboard = () => {
               </Link>
             </div>
 
-            {recentActivities.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-3 py-1">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="animate-pulse space-y-1 border-b border-zinc-100 last:border-0 pb-2.5">
+                    <div className="w-3/4 h-3 bg-zinc-200 rounded" />
+                    <div className="w-1/3 h-2 bg-zinc-200 rounded mt-1" />
+                  </div>
+                ))}
+              </div>
+            ) : recentActivities.length === 0 ? (
               <p className="text-xs text-zinc-400 italic py-2">No activity logged yet.</p>
             ) : (
               <div className="space-y-3">
@@ -559,7 +650,16 @@ const Dashboard = () => {
               </Link>
             </div>
 
-            {recentProjects.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-3 py-1">
+                {[1, 2].map(i => (
+                  <div key={i} className="p-3 rounded-xl bg-[#FAF9F6] border border-zinc-200 animate-pulse space-y-1.5">
+                    <div className="w-1/2 h-3.5 bg-zinc-200 rounded" />
+                    <div className="w-full h-2.5 bg-zinc-200 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : recentProjects.length === 0 ? (
               <div className="text-center py-4 space-y-2">
                 <p className="text-xs text-zinc-400 italic">No project proof linked yet.</p>
                 <Link to="/projects" className="text-xs font-bold text-indigo-600 hover:underline">

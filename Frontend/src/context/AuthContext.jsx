@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { clearApiCache } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -107,16 +107,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (e) {
-      // Swallowed on network failure
-    }
+    // 1. Synchronously purge client credentials immediately to eliminate race conditions
     localStorage.removeItem('skillgraph_token');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+    if (api.defaults?.headers?.common) {
+      delete api.defaults.headers.common.Authorization;
+    }
+
+    // 2. Clear API client memory cache
+    clearApiCache();
+
+    // 3. Notify backend revocation endpoint with bounded timeout
+    try {
+      await api.post('/auth/logout', {}, { timeout: 3000 });
+    } catch (e) {
+      // Swallowed on network failure or offline
+    }
   };
 
   const forgotPassword = async (email) => {

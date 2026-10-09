@@ -102,3 +102,12 @@ You can review the bundled outputs or serve them using `npm run preview`.
 
 ### Request Timeouts
 - Central Axios client configured with a 15-second request timeout and 6-second refresh timeout to avoid infinite connection hangs.
+
+### Instant Dashboard Shell Rendering & Skeleton Placeholders
+- The student career dashboard shell (`Dashboard.jsx`) mounts and displays the user's objective, shortcuts, and header immediately upon arrival.
+- Dynamic metrics (Readiness gauge, Key metrics, Curated topics, Priority gaps, Job matches) render sleek, pulse-animated skeleton cards during network fetches.
+- Non-blocking alert banners provide an instant, interactive **Retry** action if network connectivity experiences a hiccup.
+
+### Deterministic Race-Free Logout
+- Sign Out synchronously clears `localStorage` credentials and memory state before triggering navigation to `/login`.
+- Eliminates redirect bouncing and guarantees immediate departure to the public login screen.

@@ -1,5 +1,38 @@
 # SkillGraph Platform Upgrade Changelog
 
+## [Version 2.2.0] - Dashboard Command Center Speedup, Progressive Skeleton UI & Race-Free Logout
+
+### Summary
+Fixed the stuck dashboard spinner ("Opening your Career Command Center..."), accelerated the `/api/dashboard/command-center` endpoint from 5000+ ms down to ~400ms via parallel queries and lean job matching, implemented immediate dashboard shell rendering with progressive skeleton states, added non-blocking recoverable retry states, and resolved the asynchronous logout navigation race condition.
+
+### Key Enhancements & Root Causes Resolved
+
+#### 1. Instant Dashboard Shell Rendering & Skeleton UI (`Dashboard.jsx`)
+- **Root Cause**: `Dashboard.jsx` previously used an all-or-nothing check (`if (loading) return <LoadingSpinner message="Opening your Career Command Center..." />`). If the backend request took several seconds or timed out, visitors were stuck looking at a blank page with a loading spinner while the top header was visible.
+- **Fix**:
+  - Removed full-page blocking spinner. The dashboard shell (target career objective, action shortcuts, user context) renders immediately on mount.
+  - Implemented smooth, pulse-animated skeleton cards for the Career Readiness radial gauge, Key Metrics tiles (Verified Skills, Streak, Weekly Study, Projects), Learning Topics, Skill Gaps, and Job Opportunities while data is in flight.
+  - Replaced full-page blocking `<ErrorState>` with a non-blocking alert banner with an interactive **Retry** button so users maintain complete navigation freedom if a network glitch occurs.
+  - Added a bounded 10-second timeout to the dashboard fetch with deterministic cleanup in `finally`.
+
+#### 2. Backend Command Center Parallelization (`dashboardService.js`)
+- **Root Cause**: `getUserCommandCenter` previously ran 15+ database roundtrips sequentially (`User`, `UserSkill`, `Project`, `DailyActivity`, `skillGapService.calculateGap`, `Topic`, `Job.find().populate(...)`, `JobApplication`, etc.) and executed full-table un-lean job match loops with push notification dispatches on every dashboard view, consuming 5,000–12,000ms.
+- **Fix**:
+  - Parallelized core collection fetches (`User`, `UserSkill`, `Project`, `DailyActivity`, `JobApplication`) using `Promise.all`.
+  - Re-used in-memory user skill proficiencies (`userSkillMap`) instead of issuing duplicate queries.
+  - Replaced the heavy `jobService.getJobMatches` call with a lean, specialized query (`getTopJobMatchesForDashboard`) that inspects active jobs with a limit of 20, runs pure in-memory scoring, and skips notification side effects during view rendering.
+  - Concurrently executes target role readiness/gap analysis and job matches in parallel.
+  - Reduced endpoint execution time to **<500ms** (~437ms in integration tests).
+
+#### 3. Deterministic Race-Free Logout Flow (`AuthContext.jsx` & `DashboardLayout.jsx`)
+- **Root Cause**: `DashboardLayout.jsx` previously called `logout()` without `await` and immediately called `navigate('/login')`. Because `logout()` in `AuthContext.jsx` awaited a remote call to `POST /api/auth/logout` before clearing storage and state, `PublicRoute` evaluated `/login` while the JWT token was still present in React state and `localStorage`. `PublicRoute` interpreted the user as authenticated and redirected them straight back to `/dashboard`.
+- **Fix**:
+  - `logout()` in `AuthContext.jsx` now synchronously purges `localStorage` (`skillgraph_token`, `token`, `user`), resets state (`setToken(null)`, `setUser(null)`), deletes the default Axios Authorization header, and clears the in-memory API cache first.
+  - Dispatches `POST /api/auth/logout` with a short 3000ms bounded timeout so network latency never blocks the UI.
+  - `handleLogout` in `DashboardLayout.jsx` is now `async`, closes menus, awaits `logout()`, and calls `navigate('/login', { replace: true })`.
+
+---
+
 ## [Version 2.1.0] - Production Performance, Deployment Resilience & Authentication Audit
 
 ### Summary

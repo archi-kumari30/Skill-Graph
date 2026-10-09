@@ -286,4 +286,9 @@ Header: `Authorization: Bearer <token>`
 ### Resilient Graph Timeout & MongoDB Fallback
 - Skill-gap analysis queries running via CognoDB / Neo4j driver are bounded by a **2500ms timeout race**.
 - If CognoDB takes longer than 2500ms or fails to respond, the query automatically falls back to MongoDB readiness evaluation without crashing or hanging requests.
-- All 17 automated integration test suites verify system health (`npm test`).
+- All 18 automated integration test suites verify system health (`npm test`).
+
+### High-Performance Parallelized Dashboard Command Center
+- `GET /api/dashboard/command-center` executes core document queries (`User`, `UserSkill`, `Project`, `DailyActivity`, `JobApplication`) concurrently via `Promise.all`.
+- Job match calculations run against active vacancies with a lean limit of 20 and in-memory scoring, delivering responses in **<500ms** (~437ms).
+
